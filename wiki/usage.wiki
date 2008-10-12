@@ -12,6 +12,6 @@ C:\SVN\ru-compsci-sr-project-aodv\OPNET\14.5.A\models\std\include\aodv_pkt_suppo
 
 C:\SVN\ru-compsci-sr-project-aodv\OPNET\14.5.A\models\std\include\aodv_ptypes.h --> C:\Program Files\OPNET\14.5.A\models\std\include\aodv_ptypes.h
 
-
+aodv_rte_pr.c is not working that well right now, will need to manually change functions
 
  
