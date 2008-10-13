@@ -4,14 +4,12 @@ You need to write over the current files in OPNET. In order to do that, get Tort
 
 So far the files like this:
 
-C:\SVN\ru-compsci-sr-project-aodv\OPNET\14.5.A\models\std\manet\aodv_rte_pr.c --> C:\Program Files\OPNET\14.5.A\models\std\manet\aodv_rte_pr.c
-
 C:\SVN\ru-compsci-sr-project-aodv\OPNET\14.5.A\models\std\manet\aodv_pkt_support.ex.c --> C:\Program Files\OPNET\14.5.A\models\std\manet\aodv_pkt_support.ex.c
 
 C:\SVN\ru-compsci-sr-project-aodv\OPNET\14.5.A\models\std\include\aodv_pkt_support.h --> C:\Program Files\OPNET\14.5.A\models\std\include\aodv_pkt_support.h
 
 C:\SVN\ru-compsci-sr-project-aodv\OPNET\14.5.A\models\std\include\aodv_ptypes.h --> C:\Program Files\OPNET\14.5.A\models\std\include\aodv_ptypes.h
 
-aodv_rte_pr.c is not working that well right now, will need to manually change functions
+You will need to treat the function blocks inside the process model specially. There are two options, to remove the temporary aodv_rte.pr.c and replace your copy in the manet directory, or you can import the *aodv_rte.function block* from the editor in OPNET. You will first need to *Select All* and backspace to delete the text, since it just appends to the end, and doesn't actually replace the text. 
 
  
