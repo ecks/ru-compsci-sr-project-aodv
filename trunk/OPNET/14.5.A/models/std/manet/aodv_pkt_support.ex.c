@@ -103,6 +103,11 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	{
     AodvT_Rreq*					rreq_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
+	// MHAVH 10/14/08
+	Objid own_id;
+	Objid ppid;
+	double* x_position;
+	// MHAVH
 	
 	/** Creates the route request option	**/
 	FIN (aodv_pkt_support_rreq_option_create (<args>));
@@ -131,6 +136,13 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	// debug
 	printf("packet created using modified aodv_pkt_support: %i, %i, %i, %i, %i\n", src_x, src_y, dst_x, dst_y, angle);	
 	system("pause");
+	
+	// attempt at finding the parent ID
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get (ppid, "x position", &x_position);
+	printf("Position of parent is %d", x_position);
+		
 	// END MHAVH
 	
 	/* Allocate memory to set into the AODV packet option	*/
