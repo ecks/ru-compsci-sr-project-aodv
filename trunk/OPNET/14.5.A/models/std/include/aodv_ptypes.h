@@ -76,7 +76,7 @@ AodvT_Packet_Option*
 aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean grat_rrep, Boolean dest_only,
 	Boolean unknown_seq_num, int hop_count, int rreq_id, InetT_Address dest_addr, int dest_seq_num,
 	InetT_Address src_addr, int src_seq_num, 
-	int src_x, int src_y, int dst_x, int dst_y, int angle);
+	double src_x, double src_y, double dst_x, double dst_y, int angle);
 // MHAVH
 
 
