@@ -128,8 +128,10 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	rreq_option_ptr->dst_y = dst_y;
 	rreq_option_ptr->angle = angle;
 	
+	// MHAVH
 	// debug
-	printf("packet created using modified aodv_pkt_support: %.2f, %.2f, %.2f, %.2f, %i\n", src_x, src_y, dst_x, dst_y, angle);	
+	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
+			src_x, src_y, dst_x, dst_y, angle, op_sim_time());	
 	system("pause");
 	
 	
@@ -191,10 +193,16 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	rrep_option_ptr->ack_required_flag = ack_required;
 	rrep_option_ptr->hop_count = hop_count;
 	rrep_option_ptr->dest_seq_num = dest_seq_num;
+
 	//MHAVH 10/21/08
 	rrep_option_ptr->dst_x = dst_x;
 	rrep_option_ptr->dst_y = dst_y;
+	printf("rrep_option_create_geo-> dst_x: %.f\t, dst_y: %.f ===> %f\n", 
+		rrep_option_ptr->dst_x,
+		rrep_option_ptr->dst_y,
+		op_sim_time());
 	//END MHAVH 
+	
 	rrep_option_ptr->lifetime = lifetime;
 	rrep_option_ptr->dest_addr = inet_address_copy (dest_addr);
 	rrep_option_ptr->src_addr = inet_address_copy (src_addr);
