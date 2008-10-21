@@ -405,6 +405,8 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_ROUTE_REQUEST):
 			{
 			/* This is a route request packet	*/
+			// MHAVH == DEBUG
+			printf("+++++ RREQ arrival\n\n");
 			aodv_rte_rreq_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -413,6 +415,8 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_ROUTE_REPLY):
 			{
 			/* This is a route reply option	*/
+			// MHAVH == DEBUG
+			printf("+++++ RREP arrival\n\n");
 			aodv_rte_rrep_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -421,6 +425,8 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_ROUTE_ERROR):
 			{
 			/* This is a route error option	*/
+			// MHAVH == DEBUG
+			printf("+++++ ERROR arrival\n\n");
 			aodv_rte_rerr_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -429,7 +435,8 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_HELLO):
 			{
 			/* This is a RREP Hello packet	*/
-			
+			// MHAVH == DEBUG
+			printf("+++++ HELLO arrival\n\n");
 			aodv_rte_rrep_hello_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -438,6 +445,8 @@ aodv_rte_pkt_arrival_handle (void)
 		default:
 			{
 			/* Invalid option in packet	*/
+			// MHAVH == DEBUG
+			printf("+++++ INVALID arrival\n\n");
 			aodv_rte_error ("Invalid Option Type in AODV packet", OPC_NIL, OPC_NIL);
 			}	
 		}
@@ -690,6 +699,9 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* A route request packet has arrived at this node	*/
 	/* Get the request options from the packet			*/
 	rreq_option_ptr = (AodvT_Rreq*) tlv_options_ptr->value_ptr;
+	
+	printf("\n\n **** RREQ Arrival (%.0f, %.0f) ==> %f\n\n",
+		rreq_option_ptr->src_x, rreq_option_ptr->src_y, op_sim_time());
 	
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
@@ -1238,6 +1250,11 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* A route reply packet has arrived at this node	*/
 	/* Get the reply options from the packet			*/
 	rrep_option_ptr = (AodvT_Rrep*) tlv_options_ptr->value_ptr;
+	
+	
+	// MHAVH -- Debug
+	printf("\n\n **** RREP Arrival (%.0f, %.0f) ==> %f\n\n",
+		rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, op_sim_time());
 	
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
@@ -2036,8 +2053,8 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "x position", &dst_x);
 	op_ima_obj_attr_get (ppid, "y position", &dst_y);
-    printf("Destination x position is %.2f\t", dst_x);
-	printf("Destination y position is %.2f\n", dst_y);
+    printf("RREP Destination x position is %.2f\t", dst_x);
+	printf("RREP Destination y position is %.2f\n", dst_y);
 	// MHAVH
 	
 	if (node_is_dest)
@@ -2054,9 +2071,12 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 		next_hop_addr = ip_dgram_fd_ptr->src_addr;
 			
 		/* Create the RREP option	*/
+		// MHAVH 10/16/08 get the x and y position of the source node
+		printf("\n\n========\nCREATING RREP (%.2f, %.2f) == %f \n\n", dst_x,dst_y, op_sim_time());
+
 		rrep_option_ptr = aodv_pkt_support_rrep_option_create_geo (OPC_FALSE, ack_required, 0, 
-					rreq_option_ptr->dest_addr, sequence_number, rreq_option_ptr->src_addr, 
-													my_route_timeout, AODVC_ROUTE_REPLY, dst_x, dst_y);
+									rreq_option_ptr->dest_addr, sequence_number, rreq_option_ptr->src_addr, 
+									my_route_timeout, AODVC_ROUTE_REPLY, dst_x, dst_y);
 		
 		if ((op_prg_odb_ltrace_active ("trace_rreq") == OPC_TRUE)|| LTRACE_ACTIVE)
 			{
@@ -2098,6 +2118,9 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 			}
 	
 		/* Create the RREP option	*/
+		// MHAVH
+		printf("\n\n========\nNOT DESTION RREP (%.2f, %.2f)\n\n", dst_x,dst_y);
+		
 		rrep_option_ptr = aodv_pkt_support_rrep_option_create (OPC_FALSE, ack_required, hop_count, 
 			rreq_option_ptr->dest_addr, dest_seq_num, rreq_option_ptr->src_addr, lifetime, AODVC_ROUTE_REPLY);
 		
