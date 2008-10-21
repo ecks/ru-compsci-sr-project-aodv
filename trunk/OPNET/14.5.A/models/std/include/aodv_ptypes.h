@@ -73,15 +73,19 @@ AodvT_Packet_Option*		aodv_pkt_support_rreq_option_create (Boolean, Boolean, Boo
 												int, int, InetT_Address, int, InetT_Address, int);
 // MHAVH 11/10/08 - our modified function
 AodvT_Packet_Option*
-aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean grat_rrep, Boolean dest_only,
-	Boolean unknown_seq_num, int hop_count, int rreq_id, InetT_Address dest_addr, int dest_seq_num,
-	InetT_Address src_addr, int src_seq_num, 
-	double src_x, double src_y, double dst_x, double dst_y, int angle);
+aodv_pkt_support_rreq_option_create_geo (Boolean, Boolean, Boolean, Boolean, Boolean,
+	int, int, InetT_Address, int, InetT_Address, int, double, double, double, double, int);
 // MHAVH
 
 
 AodvT_Packet_Option*		aodv_pkt_support_rrep_option_create (Boolean, Boolean, int, InetT_Address, int, 
 												InetT_Address, double, int);
+
+//MHAVH 10/21/08 - our modified function
+AodvT_Packet_Option*		aodv_pkt_support_rrep_option_create_geo (Boolean, Boolean, int, InetT_Address, int, 
+												InetT_Address, double, int, double, double);
+//MHAVH
+
 AodvT_Packet_Option*		aodv_pkt_support_rerr_option_create (Boolean, int, List*);
 AodvT_Packet_Option*		aodv_pkt_support_rrep_ack_option_create (void);
 AodvT_Unreachable_Node*		aodv_pkt_support_unreachable_nodes_mem_alloc (void);

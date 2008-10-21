@@ -71,10 +71,10 @@ typedef struct
 	InetT_Address		src_addr;
 	int					src_seq_num;
 	// MHAVH 11/10/08
-	int					src_x;
-	int					src_y;
-	int					dst_x;
-	int					dst_y;
+	double				src_x;
+	double				src_y;
+	double				dst_x;
+	double				dst_y;
 	int					angle;
 	// END MHAVH
 	} AodvT_Rreq;
@@ -87,6 +87,10 @@ typedef struct
 	int					hop_count;
 	InetT_Address		dest_addr;
 	int					dest_seq_num;
+	//MHAVH 10/21/08
+	double				dst_x;
+	double				dst_y;
+	//END MHAVH
 	InetT_Address		src_addr;
 	double				lifetime;
 	} AodvT_Rrep;

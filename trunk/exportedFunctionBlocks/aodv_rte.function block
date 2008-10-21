@@ -1404,6 +1404,10 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		
 	if (reached_src)
 		{
+		//MHAVH 10/21/08
+		printf("DST_X: %.2f",rrep_option_ptr->dst_x);
+		printf("DST_Y: %.2f",rrep_option_ptr->dst_y);
+		//END MHAVH
 		/* This is the destination of the RREP message	*/
 		/* Check if the destination was under local		*/
 		/* repair and if so remove it from the list		*/
@@ -2050,9 +2054,9 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 		next_hop_addr = ip_dgram_fd_ptr->src_addr;
 			
 		/* Create the RREP option	*/
-		rrep_option_ptr = aodv_pkt_support_rrep_option_create (OPC_FALSE, ack_required, 0, 
+		rrep_option_ptr = aodv_pkt_support_rrep_option_create_geo (OPC_FALSE, ack_required, 0, 
 					rreq_option_ptr->dest_addr, sequence_number, rreq_option_ptr->src_addr, 
-													my_route_timeout, AODVC_ROUTE_REPLY);
+													my_route_timeout, AODVC_ROUTE_REPLY, dst_x, dst_y);
 		
 		if ((op_prg_odb_ltrace_active ("trace_rreq") == OPC_TRUE)|| LTRACE_ACTIVE)
 			{

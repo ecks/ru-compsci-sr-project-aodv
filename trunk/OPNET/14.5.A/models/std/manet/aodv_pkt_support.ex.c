@@ -171,6 +171,42 @@ aodv_pkt_support_rrep_option_create (Boolean repair, Boolean ack_required, int h
 	FRET (aodv_pkt_option_ptr);
 	}
 
+//MHAVH 10/21/08
+AodvT_Packet_Option*
+aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, int hop_count, 
+			InetT_Address dest_addr, int dest_seq_num, InetT_Address src_addr, double lifetime, int type,
+	        double dst_x, double dst_y)
+	{
+	AodvT_Rrep*					rrep_option_ptr;
+	AodvT_Packet_Option*		aodv_pkt_option_ptr;
+	
+	/** Creates the route reply option	**/
+	FIN (aodv_pkt_support_rrep_option_create (<args>));
+	
+	/* Allocate memory for the route reply option	**/
+	rrep_option_ptr = aodv_pkt_support_rrep_option_mem_alloc ();
+	
+	/* Set the variables of the option	*/
+	rrep_option_ptr->repair_flag = repair;
+	rrep_option_ptr->ack_required_flag = ack_required;
+	rrep_option_ptr->hop_count = hop_count;
+	rrep_option_ptr->dest_seq_num = dest_seq_num;
+	//MHAVH 10/21/08
+	rrep_option_ptr->dst_x = dst_x;
+	rrep_option_ptr->dst_y = dst_y;
+	//END MHAVH 
+	rrep_option_ptr->lifetime = lifetime;
+	rrep_option_ptr->dest_addr = inet_address_copy (dest_addr);
+	rrep_option_ptr->src_addr = inet_address_copy (src_addr);
+	
+	/* Allocate memory to set into the AODV packet option	*/
+	aodv_pkt_option_ptr = aodv_pkt_support_option_mem_alloc ();
+	aodv_pkt_option_ptr->type = type;
+	aodv_pkt_option_ptr->value_ptr = (void*) rrep_option_ptr;
+	
+	FRET (aodv_pkt_option_ptr);
+	}
+
 
 AodvT_Packet_Option*
 aodv_pkt_support_rerr_option_create (Boolean no_delete, int num_unreachable_dest, 
