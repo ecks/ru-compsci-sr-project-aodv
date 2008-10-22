@@ -307,12 +307,15 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 			{
 			/* This is a route request option	*/
 			rreq_option_ptr = (AodvT_Rreq*) option_ptr->value_ptr;
-			copy_option_ptr = aodv_pkt_support_rreq_option_create (rreq_option_ptr->join_flag, 
+			// MHAVH 10/21/08 - when a rreq packet is copied, we need to call it with the correct function as well			
+			copy_option_ptr = aodv_pkt_support_rreq_option_create_geo (rreq_option_ptr->join_flag, 
 				rreq_option_ptr->repair_flag, rreq_option_ptr->grat_rrep_flag, rreq_option_ptr->dest_only,
 				rreq_option_ptr->unknown_seq_num_flag, rreq_option_ptr->hop_count, rreq_option_ptr->rreq_id,
 				rreq_option_ptr->dest_addr, rreq_option_ptr->dest_seq_num, rreq_option_ptr->src_addr,
-				rreq_option_ptr->src_seq_num);
-			
+				rreq_option_ptr->src_seq_num,
+				rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,
+				rreq_option_ptr->angle);
+			// MHAVH			
 			break;
 			}
 			
@@ -320,10 +323,13 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 			{
 			/* This is a route reply option	*/
 			rrep_option_ptr = (AodvT_Rrep*) option_ptr->value_ptr;
-			copy_option_ptr = aodv_pkt_support_rrep_option_create (rrep_option_ptr->repair_flag,
+			// MHAVH 10/21/08 - when a rrep packet is copied, we need to call it with the correct function as well
+			printf("aodv_pkt_support_option_mem_copy: AODVC_ROUTE_REPLY (%.2f,%.2f)\n", rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);		
+			copy_option_ptr = aodv_pkt_support_rrep_option_create_geo (rrep_option_ptr->repair_flag,
 				rrep_option_ptr->ack_required_flag, rrep_option_ptr->hop_count, rrep_option_ptr->dest_addr, 
-				rrep_option_ptr->dest_seq_num, rrep_option_ptr->src_addr, rrep_option_ptr->lifetime, AODVC_ROUTE_REPLY);
-			
+				rrep_option_ptr->dest_seq_num, rrep_option_ptr->src_addr, rrep_option_ptr->lifetime, AODVC_ROUTE_REPLY,
+				rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			// MHAVH			
 			break;
 			}
 			
