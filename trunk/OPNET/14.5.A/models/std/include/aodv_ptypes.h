@@ -67,11 +67,20 @@ AodvT_Orig_Request_Entry*	aodv_route_request_orig_entry_get (AodvT_Request_Table
 void						aodv_route_request_orig_entry_delete (AodvT_Request_Table*, InetT_Address);
 void						aodv_request_table_orig_entry_mem_free (AodvT_Orig_Request_Entry*);
 
+// MHAVH 10/27/08 - aodv_geo_table function prototypes */
+AodvT_Geo_Table* 			aodv_geo_table_create ();
+void						aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, 
+										double dst_x, double dst_y);
+AodvT_Geo_Entry*			aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove);
+void						aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
+vod							aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr);
+// MHAVH
+
 /* aodv_pkt_support function prototypes	*/
 Packet*						aodv_pkt_support_pkt_create (AodvT_Packet_Option*, int);
 AodvT_Packet_Option*		aodv_pkt_support_rreq_option_create (Boolean, Boolean, Boolean, Boolean, Boolean, 
 												int, int, InetT_Address, int, InetT_Address, int);
-// MHAVH 11/10/08 - our modified function
+// MHAVH 10/11/08 - our modified function
 AodvT_Packet_Option*
 aodv_pkt_support_rreq_option_create_geo (Boolean, Boolean, Boolean, Boolean, Boolean,
 	int, int, InetT_Address, int, InetT_Address, int, double, double, double, double, int);
