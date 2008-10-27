@@ -72,11 +72,82 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 	
 	FOUT;
 	}
+
+AodvT_Geo_Entry*
+aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove)
+	{
+	AodvT_Geo_Entry*	geo_entry_ptr = OPC_NIL;
+	
+	/** Checks if a specific dst_address exists	**/
+	/** in the route request table				**/
+	FIN (aodv_geotable_entry_get (<args>));
+	
+	if (remove)
+		geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, (void *) &dst_address);
+	else
+		geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
+	
+	FRET (geo_entry_ptr);
+	}
+
+void
+aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
+	{
+	AodvT_Geo_Entry*	geo_entry_ptr;
+//	int							num_requests, count;
+//	List*						requests_lptr; 
+		
+	/** Deletes all entries that have the target address	**/
+	FIN (aodv_geo_table_entry_delete (<args>));
+	
+	/* Get the keys	*/
+//	requests_lptr = (List *) prg_bin_hash_table_item_list_get (req_table_ptr->orig_request_table);	
+//	num_requests = op_prg_list_size (requests_lptr);
+	
+//	for (count = 0; count < num_requests; count++)
+//		{
+		/* Check if there exists an entry for this address	*/
+//		req_entry_ptr = (AodvT_Orig_Request_Entry *) op_prg_list_access (requests_lptr, count);
+	
+//		if (inet_address_equal (req_entry_ptr->target_address, dest_addr))
+//			{
+			geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 
+								(void *) &dst_address);
+		
+			/* Cancel the previously scheduled event	*/
+//			op_ev_cancel (req_entry_ptr->rreq_expiry_evhandle);
+	
+			/* Free the request entry	*/
+			aodv_geo_entry_mem_free (geo_entry_ptr);
+//			}
+//		}
+	
+	/* Destroy the list.	*/
+//	prg_list_destroy (requests_lptr, OPC_FALSE);
+	
+	FOUT;
+	}
+
+void
+aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr)
+	{
+	/** Frees the memory associated with the	**/
+	/** geo table entry						**/
+	FIN (aodv_geo_table_entry_mem_free (<args>));
+	
+	/* Destroy the IP address	*/
+	inet_address_destroy (geo_entry_ptr->dst_address);
+	
+	/* Free the memory	*/
+	op_prg_mem_free (geo_entry_ptr);
+	
+	FOUT;
+	} 
 /************************ end modified from aodv_request_table *******************/
 
 /********************* begin not modified from aodv_request_table *****************/
 /*Boolean
-aodv_request_table_orig_rreq_exists (AodvT_Request_Table* req_table_ptr, InetT_Address dest_address)
+aodv_geo_table_geo_entry_exists (AodvT_Geo_Table* geo_table_ptr, InetT_Address dest_address)
 	{
 	AodvT_Orig_Request_Entry*	req_entry_ptr;
 	List*						requests_lptr;
@@ -85,10 +156,10 @@ aodv_request_table_orig_rreq_exists (AodvT_Request_Table* req_table_ptr, InetT_A
 	
 	/** Checks if an entry exists in the originating	**/
 	/** table with the specified target address			**/
-	FIN (aodv_request_table_orig_rreq_exists (<args>));
+//	FIN (aodv_geo_table_geo_entry_exists (<args>));
 	
 	/* Get the keys	*/
-	requests_lptr = (List *) prg_bin_hash_table_item_list_get (req_table_ptr->orig_request_table);
+/*	requests_lptr = (List *) prg_bin_hash_table_item_list_get (geo_table_ptr->geo_table);
 	num_requests = op_prg_list_size (requests_lptr);
 	
 	if (requests_lptr == OPC_NIL)
@@ -97,92 +168,22 @@ aodv_request_table_orig_rreq_exists (AodvT_Request_Table* req_table_ptr, InetT_A
 	for (count = 0; count < num_requests; count++)
 		{
 		/* Get the current request.	*/
-		req_entry_ptr = (AodvT_Orig_Request_Entry *) op_prg_list_access (requests_lptr, count);
+/*		req_entry_ptr = (AodvT_Orig_Request_Entry *) op_prg_list_access (requests_lptr, count);
 		
 		if (inet_address_equal (req_entry_ptr->target_address, dest_address))
 			{
 			/* An entry exists for this target address	**/
-			retval = OPC_TRUE;
+/*			retval = OPC_TRUE;
 			break;
 			}
 		}
 	
 	/* Destroy the list.	*/
-	prg_list_destroy (requests_lptr, OPC_FALSE);
+/*	prg_list_destroy (requests_lptr, OPC_FALSE);
 	
 	FRET (retval);
-	}
-
-AodvT_Orig_Request_Entry*
-aodv_route_request_orig_entry_get (AodvT_Request_Table* req_table_ptr, int req_id, Boolean remove)
-	{
-	AodvT_Orig_Request_Entry*	req_entry_ptr = OPC_NIL;
-	
-	/** Checks if a specific request ID exists	**/
-	/** in the route request table				**/
-	FIN (aodv_route_request_orig_entry_get (<args>));
-	
-	if (remove)
-		req_entry_ptr = (AodvT_Orig_Request_Entry *) prg_bin_hash_table_item_remove (req_table_ptr->orig_request_table, (void *) &req_id);
-	else
-		req_entry_ptr = (AodvT_Orig_Request_Entry *) prg_bin_hash_table_item_get (req_table_ptr->orig_request_table, (void *) &req_id);
-	
-	FRET (req_entry_ptr);
-	}
-
-void
-aodv_route_request_orig_entry_delete (AodvT_Request_Table* req_table_ptr, InetT_Address dest_addr)
-	{
-	AodvT_Orig_Request_Entry*	req_entry_ptr;
-	int							num_requests, count;
-	List*						requests_lptr;
-		
-	/** Deletes all route requests that have the target address	**/
-	FIN (aodv_route_request_orig_entry_delete (<args>));
-	
-	/* Get the keys	*/
-	requests_lptr = (List *) prg_bin_hash_table_item_list_get (req_table_ptr->orig_request_table);	
-	num_requests = op_prg_list_size (requests_lptr);
-	
-	for (count = 0; count < num_requests; count++)
-		{
-		/* Check if there exists an entry for this address	*/
-		req_entry_ptr = (AodvT_Orig_Request_Entry *) op_prg_list_access (requests_lptr, count);
-	
-		if (inet_address_equal (req_entry_ptr->target_address, dest_addr))
-			{
-			req_entry_ptr = (AodvT_Orig_Request_Entry *) prg_bin_hash_table_item_remove (req_table_ptr->orig_request_table, 
-								(void *) &(req_entry_ptr->request_id));
-		
-			/* Cancel the previously scheduled event	*/
-			op_ev_cancel (req_entry_ptr->rreq_expiry_evhandle);
-	
-			/* Free the request entry	*/
-			aodv_request_table_orig_entry_mem_free (req_entry_ptr);
-			}
-		}
-	
-	/* Destroy the list.	*/
-	prg_list_destroy (requests_lptr, OPC_FALSE);
-	
-	FOUT;
-	}
-
-void
-aodv_request_table_orig_entry_mem_free (AodvT_Orig_Request_Entry* request_entry_ptr)
-	{
-	/** Frees the memory associated with the	**/
-	/** request table entry						**/
-	FIN (aodv_request_table_orig_entry_mem_free (<args>));
-	
-	/* Destroy the IP address	*/
-	inet_address_destroy (request_entry_ptr->target_address);
-	
-	/* Free the memory	*/
-	op_prg_mem_free (request_entry_ptr);
-	
-	FOUT;
-	} */
+	}*/
+ 
 /************************* end not modified from aodv_request_table ************/
 
 /*** Internally callable function ***/
