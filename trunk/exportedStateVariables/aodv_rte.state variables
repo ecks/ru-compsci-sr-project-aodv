@@ -1,0 +1,217 @@
+/* Module Data Memory for the IP module  */
+IpT_Rte_Module_Data*	\module_data_ptr;
+
+/* Objid of this module  */
+Objid	\own_mod_objid;
+
+/* Objid of this node  */
+Objid	\own_node_objid;
+
+/* Own process handle  */
+Prohandle	\own_prohandle;
+
+/* Process handle of the parent process (manet_mgr)  */
+Prohandle	\parent_prohandle;
+
+/* Pointer to the AODV route table where the routes to all known  */
+/* destinations are stored.                                       */
+AodvT_Route_Table*	\route_table_ptr;
+
+/* Pointer to the packet queue where the data packets are   */
+/* buffered while a route to the destination is discovered  */
+AodvT_Packet_Queue*	\pkt_queue_ptr;
+
+/* Route request message identifier  */
+int	\route_request_id;
+
+/* Node's sequence number  */
+int	\sequence_number;
+
+/* This attribute is used to calculate the time before which it       */
+/* determines that the neighbor connectivity is lost. If a node does  */
+/* not receive and packets (Hello messages or any other packet),      */
+/* from the neighbor within the last                                  */
+/* "Allowed Hello Loss * Hello Interval", the node assumes that the   */
+/* link to the neighbor is currently lost                             */
+OmsT_Dist_Handle	\hello_interval_dist_ptr;
+
+/* This attribute measures the maximum possible number of hops  */
+/* between two nodes in the network.                            */
+/*                                                              */
+/* If the TTL value set in the route request reaches the TTL    */
+/* Threshold, the TTL is then set to the Net Diameter for each  */
+/* attempt.                                                     */
+int	\net_diameter;
+
+/* The Node Traversal Time is a conservative estimate of the       */
+/* average one hop traversal time for packets and should include   */
+/* queuing delays, interrupt processing times and transfer times.  */
+double	\node_traversal_time;
+
+/* The time at which the last route error was sent. This is to  */
+/* implement the rate at which the route errors are sent out.   */
+double	\last_route_error_sent_time;
+
+/* The number of route errors that have been sent out within the  */
+/* last one second.                                               */
+int	\num_route_errors_sent;
+
+/* Maximum number of route errors that can be sent out in one second  */
+int	\route_error_rate;
+
+/* The time at which the last route request was sent. This is to  */
+/* implement the rate at which the route requests are sent out.   */
+double	\last_route_request_sent_time;
+
+/* The number of route requests that have been sent out within the  */
+/* last one second.                                                 */
+int	\num_route_requests_sent;
+
+/* Maximum number of route requests that can be sent out in one second  */
+int	\route_request_rate;
+
+/* This attribute provides a buffer for the timeout for receiving  */
+/* a route reply for a route request sent out. If a route reply    */
+/* message is delayed due to congestion, a timeout is less likely  */
+/* to occur while the route reply is still en route back to the    */
+/* source. To omit this buffer, set "Timeout Buffer" = 0.          */
+/*                                                                 */
+/* This attribute is used in calculating the ring traversal time.  */
+/*                                                                 */
+/* Ring Traversal Time =                                           */
+/* 2 * Node Traversal Time * (TTL_Value + Timeout Buffer)          */
+int	\timeout_buffer;
+
+/* The network-wide dissemination of route requests uses an    */
+/* expanding ring search. The originating node initially uses  */
+/* a TTL = "TTL Start" for the search.                         */
+int	\ttl_start;
+
+/* If the route request times out without receiving a           */
+/* corresponding route reply, the originating node broadcasts   */
+/* the route request again with the TTL value incremented by    */
+/* "TTL Increment".                                             */
+/*                                                              */
+/* This increment is done upto the point the TTL value reaches  */
+/* the TTL Threshold.                                           */
+int	\ttl_increment;
+
+/* The TTL value is incremented for every timeout of the route     */
+/* request without receiving a valid route reply. This TTL value   */
+/* is incremented upto a maximum of TTL Threshold. Beyond this     */
+/* threshold, the TTL value is set to the "Net Diameter" for each  */
+/* attempt.                                                        */
+int	\ttl_threshold;
+
+/* When a node decides to perform a local repair, this attribute is  */
+/* used to calculate the TTL value to be set on the route request    */
+/* message. The value is calculated as :                             */
+/*                                                                   */
+/* max (MIN_REPAIR_TTL, 0.5 * #Hops) + Local_Add_TTL                 */
+/*                                                                   */
+/* where the "MIN_REPAIR_TTL" is the last known hop count to the     */
+/* destination.                                                      */
+int	\local_add_ttl;
+
+/* Maximum TTL value to be used during route repair  */
+int	\max_repair_ttl;
+
+/* The time for which nodes receiving the RREP consider the route  */
+/* to be valid                                                     */
+double	\my_route_timeout;
+
+/* After a route request has been sent out, a route should be received  */
+/* within the net traversal time.                                       */
+double	\net_traversal_time;
+
+/* The time for which a node will hold information about a route  */
+/* request sent out                                               */
+double	\path_discovery_time;
+
+/* Pointer to the request table  */
+AodvT_Request_Table*	\request_table_ptr;
+
+/* MHAVH 01/11/08 - pointer to the geo table */
+AodvT_Geo_Table*		\geo_table_ptr;
+
+/* Handle to the local statistics  */
+AodvT_Local_Stathandles*	\local_stat_handle_ptr;
+
+/* Handle to the global statistics  */
+AodvT_Global_Stathandles*	\global_stat_handle_ptr;
+
+/* Indicates whether a gratuitous route reply is required  */
+Boolean	\grat_route_reply_flag;
+
+/* Indicates whether only destination nodes of route requests  */
+/* can send a route reply message                              */
+Boolean	\dest_only_flag;
+
+/* Indicates whether an acknowledgement is required  */
+Boolean	\ack_required;
+
+/* Unique protocol ID returned by the IP common route table  */
+IpT_Rte_Proc_Id	\aodv_proto_id;
+
+/* Own process ID  */
+int	\own_pro_id;
+
+/* Parent process ID  */
+int	\parent_pro_id;
+
+/* length 32 subnet mask for entries in the route table that are  */
+/* length 32 bits                                                 */
+InetT_Subnet_Mask	\subnet_mask;
+
+/* length 128 subnet mask for entries in the route table that are  */
+/* length 128 bits.                                                */
+InetT_Subnet_Mask	\subnet_mask_ipv6;
+
+/* Time the last broadcast message was sent from this node. A       */
+/* broadcast message could be eaither a hello message or a RREQ.    */
+/* This is to determine whether to send out a hello message. Hello  */
+/* messsages are sent out if there has been no broadcast from this  */
+/* node for the last hello interval                                 */
+double	\last_broadcast_sent_time;
+
+/* Number of hello packets that can be lost before the connectivity  */
+/* to the neighbor is considered to be lost.                         */
+int	\allowed_hello_loss;
+
+/* This table maintains the neighbors to this node from which it   */
+/* has received a hello packet. The table maintains the time of    */
+/* the last received packet from each neighbor.                    */
+/*                                                                 */
+/* If no packet is received from a neighbor for more than the      */
+/* ALLOWED_HELLO_LOSS * HELLO_INTERVAL, the node assumes that the  */
+/* link to this neighbor is currently lost.                        */
+InetT_Address_Hash_Table_Handle	\neighbor_connectivity_table;
+
+/* Time after which a route is deleted from the route table. A  */
+/* route may already be invalid before it is deleted from the   */
+/* route table. This is done to keep knowledge of the old       */
+/* information.                                                 */
+double	\delete_period;
+
+/* Determines whether this node has the functionality to repair  */
+/* a link break in an active route                               */
+Boolean	\local_repair;
+
+/* List of destination nodes that are currently under local repair  */
+List*	\local_repair_nodes_lptr;
+
+/* Higher layer protocol ID returned by the common route table  */
+int	\higher_layer_proto_id;
+
+/* Display string  */
+char	\pid_string [32];
+
+/* This variable stores the address family type for this node     */
+/* If node sends/receives packet that does not match the current  */
+/* addressing mode (family), it will dropped. While sending out   */
+/* broadcast packets, like Hello or bcast RERR, this variable    */
+/* will determine the broadcast address.                    */
+InetT_Addr_Family	\aodv_addressing_mode;
+/* This table contains the routes external hosts (non-MANET hosts). */
+Manet_Rte_Ext_Cache_Table*	\external_routes_cache_table_ptr;
+

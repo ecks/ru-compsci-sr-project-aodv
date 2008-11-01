@@ -183,6 +183,10 @@ aodv_rte_attributes_parse_buffers_create (void)
 	request_table_ptr = aodv_request_table_create (path_discovery_time, route_request_retries, aodv_addressing_mode);
 	pkt_queue_ptr     = aodv_packet_queue_create (pkt_queue_size, local_stat_handle_ptr, aodv_addressing_mode);
 	
+	// MHAVH 01/11/08 - initialize the geo table 
+	geo_table_ptr = aodv_geo_table_create();
+	// MHAVH
+	
 	/* Initialize the packet queue table for local repair	*/
 	if (local_repair)
 		{
@@ -1911,6 +1915,7 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	Objid ppid;
 	double src_x;
 	double src_y;
+	AodvT_Geo_Entry* geo_entry_ptr;
 	// MHAVH
 		
 	/** Broadcasts a route request message	**/
@@ -1930,20 +1935,34 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	
 	/* Increment the originating sequence number	*/
 	sequence_number++;
-
-	// MHAVH 10/16/08 get the x and y position of the source node
+	
+	// MHAVH 16/10/08 get the x and y position of the source node
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "x position", &src_x);
 	op_ima_obj_attr_get (ppid, "y position", &src_y);
 	// MHAVH
 	
-	/* Create a route request option	*/
-	// MHAVH 11/10/08 - modify a function
-	rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
+	// MHAVH 01/11/08 - add the x & y positions from the geo table if available
+	if(aodv_geo_table_entry_exists(geo_table_ptr, dest_addr))
+		{
+		geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
+		rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
+								grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
+								route_request_id, dest_addr, 
+								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
+								src_x,src_y,geo_entry_ptr->dst_x,geo_entry_ptr->dst_y,
+								INITIAL_REQUEST_LEVEL);	
+		}
+	else
+		{
+		/* Create a default route request option	*/
+	    // MHAVH 11/10/08 - modify a function
+	    rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
 		grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, route_request_id, dest_addr, 
 								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-								src_x,src_y,0,0,0);	
+								src_x,src_y,DEFAULT_X,DEFAULT_Y,BROADCAST_REQUEST_LEVEL);
+		}
 	// MHAVH
 	
 	

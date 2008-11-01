@@ -40,6 +40,27 @@ aodv_geo_table_create (
 	FRET (geo_table_ptr);
 	}
 
+Boolean						
+aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
+	{
+	AodvT_Geo_Entry*			geo_entry_ptr;
+	
+    /** Checks if a specific destination address exists  **/
+    /** in the geo table              **/
+    FIN (aodv_geo_table__entry_exists (<args>));
+    
+	/* Check if there exists an entry for this address  */
+    geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
+
+    if ((geo_entry_ptr == OPC_NIL))
+        FRET (OPC_FALSE);
+
+	prg_mem_free(geo_entry_ptr);
+	FRET(OPC_TRUE);
+	
+	}
+
+
 void
 aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, 
 										double dst_x, double dst_y)
@@ -111,14 +132,14 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	
 //		if (inet_address_equal (req_entry_ptr->target_address, dest_addr))
 //			{
-			geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 
+		geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 
 								(void *) &dst_address);
 		
 			/* Cancel the previously scheduled event	*/
 //			op_ev_cancel (req_entry_ptr->rreq_expiry_evhandle);
 	
 			/* Free the request entry	*/
-			aodv_geo_entry_mem_free (geo_entry_ptr);
+		aodv_geo_table_entry_mem_free (geo_entry_ptr);
 //			}
 //		}
 	
