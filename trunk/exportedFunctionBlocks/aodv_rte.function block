@@ -1244,6 +1244,9 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	char						dest_addr_str [INETC_ADDR_STR_LEN];
 	double						existing_lifetime, lifetime;
 	double						route_expiry_time;
+	// MHAVH 11/03/08 - temporary var to print IP address
+	char 						tmp_ip_addr[INETC_ADDR_STR_LEN];
+	// MHAVH
 	ManetT_Nexthop_Info*		manet_nexthop_info_ptr = OPC_NIL;
 	AodvT_Route_Entry*			fwd_path_entry_ptr = OPC_NIL;
 	InetT_Subnet_Mask			selected_subnet_mask;
@@ -1279,6 +1282,17 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* Update the route to the previous hop of the	*/
 	/* route reply message.							*/
 	aodv_rte_route_table_entry_update (ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
+	
+	// MHAVH 11/03/08 - debug info
+	printf("\n\n **** RREP Arrival (%.0f, %.0f) ==> %f\n\n",
+		rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, op_sim_time());
+	
+	inet_address_print(tmp_ip_addr , rrep_option_ptr->dest_addr);
+	printf("The IP address of the dest of this packet is %s\n", tmp_ip_addr);
+    // MHAVH
+	
+	
+	
 	
 	if (LTRACE_ACTIVE)
 		{
@@ -1340,6 +1354,11 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 										in_port_info, rrep_option_ptr->hop_count, rrep_option_ptr->dest_seq_num, 
 										rrep_option_ptr->lifetime);
 		
+		// MHAVH 11/03/08 - insert the new entry into the geo table entry
+		aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
+			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+		// MHAVH
+	
 		/* Send all packets queued to this destination	*/
 		aodv_rte_all_pkts_to_dest_send (rrep_option_ptr->dest_addr, route_entry_ptr, reached_src);
 		
@@ -1403,6 +1422,13 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 				{
 				aodv_route_table_entry_state_set (route_table_ptr, route_entry_ptr, rrep_option_ptr->dest_addr, AodvC_Valid_Route);
 				}
+					
+			// MHAVH 11/03/08 - remove the current entry, which is no longer valid 
+			aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
+			// insert the new entry into the geo table
+			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
+			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			// MHAVH
 		
 			/* Mark the destination sequence as valid	*/
 			aodv_route_table_entry_param_set (route_entry_ptr, AODVC_ROUTE_ENTRY_VALID_SEQ_NUM_FLAG, OPC_TRUE);
