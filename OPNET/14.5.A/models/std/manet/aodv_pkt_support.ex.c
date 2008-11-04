@@ -103,9 +103,14 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	{
     AodvT_Rreq*					rreq_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
+	// print out the src address, temporary placeholder
+	char						tmp_ip_addr[INETC_ADDR_STR_LEN];
+	Objid						own_id;
+	Objid						ppid;
+	char						name[256];
 	
 	/** Creates the route request option	**/
-	FIN (aodv_pkt_support_rreq_option_create (<args>));
+	FIN (aodv_pkt_support_rreq_option_create_geo (<args>));
 	
 	/* Allocate memory for the Route Request option	**/
 	rreq_option_ptr = aodv_pkt_support_rreq_option_mem_alloc ();
@@ -130,8 +135,16 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	
 	// MHAVH
 	// debug
+	
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get(ppid, "name", &name);
+	
 	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
-			src_x, src_y, dst_x, dst_y, angle, op_sim_time());	
+			src_x, src_y, dst_x, dst_y, angle, op_sim_time());
+	inet_address_print(tmp_ip_addr, rreq_option_ptr->src_addr);
+	printf("RREQ created with src_addr of %s\n", tmp_ip_addr);
+	printf("RREQ was created by %s\n", name);
 	system("pause");
 	
 	
