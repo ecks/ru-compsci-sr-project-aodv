@@ -1355,8 +1355,10 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 										rrep_option_ptr->lifetime);
 		
 		// MHAVH 11/03/08 - insert the new entry into the geo table entry
+		
+		// DEBUGGING
 		aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 		// MHAVH
 	
 		/* Send all packets queued to this destination	*/
@@ -1424,10 +1426,13 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 				}
 					
 			// MHAVH 11/03/08 - remove the current entry, which is no longer valid 
-			aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
+			
+			// Temporarily comment out for sake of DEBUGGING
+			//aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
 			// insert the new entry into the geo table
-			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			//aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
+			//			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			
 			// MHAVH
 		
 			/* Mark the destination sequence as valid	*/
@@ -1452,9 +1457,10 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	if (reached_src)
 		{
 		//MHAVH 10/21/08
-		printf("DST_X: %.2f",rrep_option_ptr->dst_x);
+		printf("DST_X: %.2f   ",rrep_option_ptr->dst_x);
 		printf("DST_Y: %.2f",rrep_option_ptr->dst_y);
 		//END MHAVH
+	
 		/* This is the destination of the RREP message	*/
 		/* Check if the destination was under local		*/
 		/* repair and if so remove it from the list		*/
@@ -1973,21 +1979,33 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	if(aodv_geo_table_entry_exists(geo_table_ptr, dest_addr))
 		{
 		geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
+		
+		printf("Geo destination Exists.\n");
+		printf("Coordinates (%.2f, %.2f)\n",geo_entry_ptr->dst_x, geo_entry_ptr->dst_y);
+		
 		rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
 								grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
 								route_request_id, dest_addr, 
 								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-								src_x,src_y,geo_entry_ptr->dst_x,geo_entry_ptr->dst_y,
+								src_x, src_y,
+								geo_entry_ptr->dst_x, geo_entry_ptr->dst_y,
 								INITIAL_REQUEST_LEVEL);	
 		}
 	else
 		{
 		/* Create a default route request option	*/
 	    // MHAVH 11/10/08 - modify a function
-	    rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
-		grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, route_request_id, dest_addr, 
+		
+		printf("Geo destination NOT FOUND. \n");
+		printf("Coordinates (%.2f, %.2f)\n",DEFAULT_X, DEFAULT_Y);
+		
+	   rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
+								grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
+								route_request_id, dest_addr, 
 								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-								src_x,src_y,DEFAULT_X,DEFAULT_Y,BROADCAST_REQUEST_LEVEL);
+								src_x, src_y,								// Source geo coordinates
+								DEFAULT_X, DEFAULT_Y,					// Destination geo coordinates
+								BROADCAST_REQUEST_LEVEL);				// Geo Request Level
 		}
 	// MHAVH
 	
