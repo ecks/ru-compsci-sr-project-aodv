@@ -54,8 +54,8 @@ extern "C" {
 #define AODVC_DEST_SEQ_NUM_INVALID		-1
 
 // MHAVH 11/01/08 constants for aodv_geo data
-#define DEFAULT_X						-1
-#define DEFAULT_Y						-1
+#define DEFAULT_X						-1.0
+#define DEFAULT_Y						-1.0
 #define INITIAL_REQUEST_LEVEL			0
 #define BROADCAST_REQUEST_LEVEL         3
 // MHAVH
