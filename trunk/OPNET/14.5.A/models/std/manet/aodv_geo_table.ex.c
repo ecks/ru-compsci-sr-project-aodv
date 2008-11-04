@@ -46,16 +46,15 @@ aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_ad
 	/* Check if there exists an entry for this address  */
     geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
 
-	printf("Got item....\n");
+	//printf("Got item....\n");
 	
 	if ((geo_entry_ptr == PRGC_NIL))
         FRET (OPC_FALSE);
 
-	printf("Before free memory....\n");
 	
 	//prg_mem_free(geo_entry_ptr);
 	
-	printf("Memory freed... returning\n");
+
 	FRET(OPC_TRUE);
 	
 	}
@@ -129,10 +128,14 @@ void
 aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
 	{
 	AodvT_Geo_Entry*	geo_entry_ptr;
-		
+	char				addr_str [INETC_ADDR_STR_LEN];
+	
 	/** Deletes all entries that have the target address	**/
 	FIN (aodv_geo_table_entry_delete (<args>));
 	
+	// Print dest address for debugging
+	inet_address_print (addr_str, dst_address);	
+	printf("^^^^^^^^^^^^^^^^Deleting Dest %s with key %d\n", addr_str, &dst_address);
 	geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 	(void *) &dst_address);
 
 	/* Free the request entry	*/

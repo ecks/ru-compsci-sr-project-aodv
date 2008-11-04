@@ -439,8 +439,8 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_HELLO):
 			{
 			/* This is a RREP Hello packet	*/
-			// MHAVH == DEBUG
-			printf("+++++ HELLO arrival\n\n");
+			// MHAVH == DEBUG (not necessary yet, gets in the way of real messages)
+			//printf("+++++ HELLO arrival\n\n");
 			aodv_rte_rrep_hello_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -696,7 +696,13 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	Ici*					ip_iciptr;
 	int						mcast_major_port = IPC_MCAST_ALL_MAJOR_PORTS;
 	Manet_Rte_Ext_Cache_entry* ext_cache_entry_ptr = OPC_NIL;
-
+	// MHAVH 11/04/08 - temporary var to print IP address
+	char 						tmp_ip_addr[INETC_ADDR_STR_LEN];
+	char						name[256];
+	Objid						own_id;
+	Objid						ppid;
+	// MHAVH
+	
 	/** Handles the arrival of a route request message	**/
 	FIN (aodv_rte_rreq_pkt_arrival_handle (<args>));
 	
@@ -704,8 +710,18 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* Get the request options from the packet			*/
 	rreq_option_ptr = (AodvT_Rreq*) tlv_options_ptr->value_ptr;
 	
+	// MHAVH 11/03/08 - debug info
 	printf("\n\n **** RREQ Arrival (%.0f, %.0f) ==> %f\n\n",
 		rreq_option_ptr->src_x, rreq_option_ptr->src_y, op_sim_time());
+	
+	inet_address_print(tmp_ip_addr , rreq_option_ptr->src_addr);
+	printf("The IP address of the src of this packet is %s\n", tmp_ip_addr);
+	
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get (ppid, "name", &name);
+	printf("The name of this node is %s\n", name);
+    // MHAVH	
 	
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
@@ -830,6 +846,15 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		route_entry_ptr = aodv_route_table_entry_create (route_table_ptr, rreq_option_ptr->src_addr, selected_subnet_mask, prev_hop_addr, 
 														 in_port_info, rreq_option_ptr->hop_count, rreq_option_ptr->src_seq_num, min_lifetime);
 		
+		// MHAVH 11/04/08 - no previous route request received from this source, update the geo table
+        if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->src_addr))
+			{
+			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
+			}
+		
+		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+		// MHAVH
+		
 		/* Send all packets queued to this destination	*/
 		aodv_rte_all_pkts_to_dest_send (rreq_option_ptr->src_addr, route_entry_ptr, OPC_FALSE);
 		
@@ -880,6 +905,15 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			lifetime = min_lifetime;
 			aodv_route_table_entry_state_set (route_table_ptr, route_entry_ptr, rreq_option_ptr->src_addr, AodvC_Valid_Route);
 			}
+		
+		// MHAVH 11/04/08 - there is a newer route request, update the geo table
+        if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->src_addr))
+			{
+			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
+			}
+		
+		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+		// MHAVH
 		
 		/* Set the valid sequence number field to true	*/
 		route_entry_ptr->valid_dest_sequence_number_flag = OPC_TRUE;
@@ -1246,6 +1280,9 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	double						route_expiry_time;
 	// MHAVH 11/03/08 - temporary var to print IP address
 	char 						tmp_ip_addr[INETC_ADDR_STR_LEN];
+	char						name[256];
+	Objid						own_id;
+	Objid						ppid;
 	// MHAVH
 	ManetT_Nexthop_Info*		manet_nexthop_info_ptr = OPC_NIL;
 	AodvT_Route_Entry*			fwd_path_entry_ptr = OPC_NIL;
@@ -1257,11 +1294,6 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* A route reply packet has arrived at this node	*/
 	/* Get the reply options from the packet			*/
 	rrep_option_ptr = (AodvT_Rrep*) tlv_options_ptr->value_ptr;
-	
-	
-	// MHAVH -- Debug
-	printf("\n\n **** RREP Arrival (%.0f, %.0f) ==> %f\n\n",
-		rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, op_sim_time());
 	
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
@@ -1289,6 +1321,11 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	inet_address_print(tmp_ip_addr , rrep_option_ptr->dest_addr);
 	printf("The IP address of the dest of this packet is %s\n", tmp_ip_addr);
+	
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get (ppid, "name", &name);
+	printf("The name of this node is %s\n", name);
     // MHAVH
 	
 	
@@ -1355,8 +1392,12 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 										rrep_option_ptr->lifetime);
 		
 		// MHAVH 11/03/08 - insert the new entry into the geo table entry
-		
-		// DEBUGGING
+		// if the entry is already in the geo table, delete it so we can reinsert it
+		if(aodv_geo_table_entry_exists(geo_table_ptr, rrep_option_ptr->dest_addr))
+			{
+			aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
+			}
+		   
 		aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
 								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 		// MHAVH
@@ -1427,11 +1468,15 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 					
 			// MHAVH 11/03/08 - remove the current entry, which is no longer valid 
 			
-			// Temporarily comment out for sake of DEBUGGING
-			//aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
+			// if there is an entry in the geo table, delete it first so that we may overwrite it
+			if(aodv_geo_table_entry_exists(geo_table_ptr, rrep_option_ptr->dest_addr))
+				{
+				aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
+				}
+			   
 			// insert the new entry into the geo table
-			//aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-			//			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
+						rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 			
 			// MHAVH
 		
@@ -1458,7 +1503,7 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		{
 		//MHAVH 10/21/08
 		printf("DST_X: %.2f   ",rrep_option_ptr->dst_x);
-		printf("DST_Y: %.2f",rrep_option_ptr->dst_y);
+		printf("DST_Y: %.2f\n",rrep_option_ptr->dst_y);
 		//END MHAVH
 	
 		/* This is the destination of the RREP message	*/
