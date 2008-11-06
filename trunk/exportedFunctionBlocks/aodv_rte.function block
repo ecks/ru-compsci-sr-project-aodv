@@ -410,7 +410,7 @@ aodv_rte_pkt_arrival_handle (void)
 			{
 			/* This is a route request packet	*/
 			// MHAVH == DEBUG
-			printf("+++++ RREQ arrival\n\n");
+			printf("\n\n+++++ RREQ arrival\n");
 			aodv_rte_rreq_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -696,6 +696,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	Ici*					ip_iciptr;
 	int						mcast_major_port = IPC_MCAST_ALL_MAJOR_PORTS;
 	Manet_Rte_Ext_Cache_entry* ext_cache_entry_ptr = OPC_NIL;
+	
 	// MHAVH 11/04/08 - temporary var to print IP address
 	char 						tmp_ip_addr[INETC_ADDR_STR_LEN];
 	char						name[256];
@@ -719,14 +720,17 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* from the actual source node, the output interface	*/
 	/* address is not known as it is broadcast.				*/
 	if (rreq_option_ptr->hop_count == 0)
+		{
 		rreq_option_ptr->src_addr = inet_address_copy (prev_hop_addr);
+		printf("VVVVVVVVVVVVV Setting source address\n");
+		}
 	
 	// MHAVH 11/04/08 - debug
-	printf("\n\n **** RREQ Arrival (%.0f, %.0f) ==> %f\n\n",
+	printf("**** RREQ Arrival[%d] (%.0f, %.0f) ==> %f\n\n",rreq_option_ptr->src_seq_num,
 		rreq_option_ptr->src_x, rreq_option_ptr->src_y, op_sim_time());
 	
 	inet_address_print(tmp_ip_addr , rreq_option_ptr->src_addr);
-	printf("The IP address of the src of this packet is %s\n", tmp_ip_addr);
+	printf("The IP address of the src of this packet (TTL = %d) is %s\n", ip_dgram_fd_ptr->ttl , tmp_ip_addr);
 	
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
@@ -743,6 +747,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		printf("There is no geo entry for the source of the rreq\n");
 		}
 	// MHAVH
+	
+	
 	if ((op_prg_odb_ltrace_active ("trace_rreq") == OPC_TRUE)|| LTRACE_ACTIVE)
 		{
 		inet_address_print (src_hop_addr_str, ip_dgram_fd_ptr->src_addr);
@@ -857,7 +863,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 														 in_port_info, rreq_option_ptr->hop_count, rreq_option_ptr->src_seq_num, min_lifetime);
 		
 		// MHAVH 11/04/08 - no previous route request received from this source, update the geo table
-        if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->src_addr))
+       if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->src_addr))
 			{
 			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
 			}
@@ -1783,6 +1789,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 	AodvC_Route_Entry_State	route_entry_state;
 	InetT_Subnet_Mask		selected_subnet_mask;
 	Boolean					hello_msg = OPC_FALSE;
+
 	// MHAVH 11/04/08 - local variables to set the geo table
 	double					geo_x;
 	double					geo_y;
