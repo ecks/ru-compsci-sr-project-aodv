@@ -103,7 +103,7 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	{
     AodvT_Rreq*					rreq_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
-	// print out the src address, temporary placeholder
+	// temporary placeholders for debugging
 	char						tmp_ip_addr[INETC_ADDR_STR_LEN];
 	Objid						own_id;
 	Objid						ppid;
@@ -127,15 +127,14 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	rreq_option_ptr->src_seq_num = src_seq_num;
 	rreq_option_ptr->dest_addr = inet_address_copy (dest_addr);
 	rreq_option_ptr->src_addr = inet_address_copy (src_addr);
+	// MHAVH
 	rreq_option_ptr->src_x = src_x;
 	rreq_option_ptr->src_y = src_y;
 	rreq_option_ptr->dst_x = dst_x;
 	rreq_option_ptr->dst_y = dst_y;
 	rreq_option_ptr->angle = angle;
 	
-	// MHAVH
-	// debug
-	
+	// debug	
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get(ppid, "name", &name);
@@ -143,10 +142,8 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
 			src_x, src_y, dst_x, dst_y, angle, op_sim_time());
 	inet_address_print(tmp_ip_addr, rreq_option_ptr->src_addr);
-	printf("RREQ created with src_addr of %s\n", tmp_ip_addr);
-	printf("RREQ was created by %s\n", name);
-	system("pause");
-	
+	printf("  * created with src_addr of %s by %s\n", tmp_ip_addr, name);
+	// END MHAVH
 	
 	/* Allocate memory to set into the AODV packet option	*/
 	aodv_pkt_option_ptr = aodv_pkt_support_option_mem_alloc ();
@@ -194,6 +191,11 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	{
 	AodvT_Rrep*					rrep_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
+	// temporary placeholders for debugging
+	char						tmp_ip_addr[INETC_ADDR_STR_LEN];
+	Objid						own_id;
+	Objid						ppid;
+	char						name[256];
 	
 	/** Creates the route reply option	**/
 	FIN (aodv_pkt_support_rrep_option_create (<args>));
@@ -206,14 +208,19 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	rrep_option_ptr->ack_required_flag = ack_required;
 	rrep_option_ptr->hop_count = hop_count;
 	rrep_option_ptr->dest_seq_num = dest_seq_num;
-
 	//MHAVH 10/21/08
 	rrep_option_ptr->dst_x = dst_x;
 	rrep_option_ptr->dst_y = dst_y;
-	printf("rrep_option_create_geo-> dst_x: %.f\t, dst_y: %.f ===> %f\n", 
-		rrep_option_ptr->dst_x,
-		rrep_option_ptr->dst_y,
-		op_sim_time());
+	
+	// debug	
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get(ppid, "name", &name);
+	
+	printf("RREP:(%.f, %.f), %f\n", 
+			 dst_x, dst_y, op_sim_time());
+	inet_address_print(tmp_ip_addr, rrep_option_ptr->dest_addr);
+	printf("  * created with src_addr of %s by %s\n  * with dest_sequence number [%d]\n", tmp_ip_addr, name, dest_seq_num);
 	//END MHAVH 
 	
 	rrep_option_ptr->lifetime = lifetime;
@@ -322,7 +329,7 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 			/* This is a route request option	*/
 			rreq_option_ptr = (AodvT_Rreq*) option_ptr->value_ptr;
 			// MHAVH 10/21/08 - when a rreq packet is copied, we need to call it with the correct function as well			
-			printf("\naodv_pkt_support_option_mem_copy: AODVC_ROUTE_REQUEST (%.2f,%.2f)\n", rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
+			printf("^^^Copying RREQ packet through mem_copy with src_sequence number [%d]\n", rreq_option_ptr->src_seq_num);
 			copy_option_ptr = aodv_pkt_support_rreq_option_create_geo (rreq_option_ptr->join_flag, 
 				rreq_option_ptr->repair_flag, rreq_option_ptr->grat_rrep_flag, rreq_option_ptr->dest_only,
 				rreq_option_ptr->unknown_seq_num_flag, rreq_option_ptr->hop_count, rreq_option_ptr->rreq_id,
@@ -330,6 +337,8 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 				rreq_option_ptr->src_seq_num,
 				rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,
 				rreq_option_ptr->angle);
+			printf("Done copying RREQ packet\n\n");
+			
 			// MHAVH			
 			break;
 			}
@@ -339,11 +348,12 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 			/* This is a route reply option	*/
 			rrep_option_ptr = (AodvT_Rrep*) option_ptr->value_ptr;
 			// MHAVH 10/21/08 - when a rrep packet is copied, we need to call it with the correct function as well
-			printf("\naodv_pkt_support_option_mem_copy: AODVC_ROUTE_REPLY (%.2f,%.2f)\n", rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);		
+			printf("*Copying RREP packet through mem_copy\n");	
 			copy_option_ptr = aodv_pkt_support_rrep_option_create_geo (rrep_option_ptr->repair_flag,
 				rrep_option_ptr->ack_required_flag, rrep_option_ptr->hop_count, rrep_option_ptr->dest_addr, 
 				rrep_option_ptr->dest_seq_num, rrep_option_ptr->src_addr, rrep_option_ptr->lifetime, AODVC_ROUTE_REPLY,
 				rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			printf("Done copying RREQ packet\n\n");
 			// MHAVH			
 			break;
 			}
