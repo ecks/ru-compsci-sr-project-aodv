@@ -212,6 +212,10 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	rrep_option_ptr->dst_x = dst_x;
 	rrep_option_ptr->dst_y = dst_y;
 	
+	rrep_option_ptr->lifetime = lifetime;
+	rrep_option_ptr->dest_addr = inet_address_copy (dest_addr);
+	rrep_option_ptr->src_addr = inet_address_copy (src_addr);
+	
 	// debug	
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
@@ -220,13 +224,9 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	printf("RREP:(%.f, %.f), %f\n", 
 			 dst_x, dst_y, op_sim_time());
 	inet_address_print(tmp_ip_addr, rrep_option_ptr->dest_addr);
-	printf("  * created with src_addr of %s by %s\n  * with dest_sequence number [%d]\n", tmp_ip_addr, name, dest_seq_num);
-	//END MHAVH 
-	
-	rrep_option_ptr->lifetime = lifetime;
-	rrep_option_ptr->dest_addr = inet_address_copy (dest_addr);
-	rrep_option_ptr->src_addr = inet_address_copy (src_addr);
-	
+	printf("  * created with dest_addr of %s by %s\n", tmp_ip_addr, name);
+	//END MHAVH
+					   
 	/* Allocate memory to set into the AODV packet option	*/
 	aodv_pkt_option_ptr = aodv_pkt_support_option_mem_alloc ();
 	aodv_pkt_option_ptr->type = type;
@@ -348,12 +348,12 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 			/* This is a route reply option	*/
 			rrep_option_ptr = (AodvT_Rrep*) option_ptr->value_ptr;
 			// MHAVH 10/21/08 - when a rrep packet is copied, we need to call it with the correct function as well
-			printf("*Copying RREP packet through mem_copy\n");	
+			printf("###Copying RREP packet through mem_copy with dst_sequence number [%d]\n", rrep_option_ptr->dest_seq_num);	
 			copy_option_ptr = aodv_pkt_support_rrep_option_create_geo (rrep_option_ptr->repair_flag,
 				rrep_option_ptr->ack_required_flag, rrep_option_ptr->hop_count, rrep_option_ptr->dest_addr, 
 				rrep_option_ptr->dest_seq_num, rrep_option_ptr->src_addr, rrep_option_ptr->lifetime, AODVC_ROUTE_REPLY,
 				rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
-			printf("Done copying RREQ packet\n\n");
+			printf("Done copying RREP packet\n\n");
 			// MHAVH			
 			break;
 			}

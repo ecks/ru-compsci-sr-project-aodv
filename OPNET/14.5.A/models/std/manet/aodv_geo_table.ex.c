@@ -45,16 +45,10 @@ aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_ad
     
 	/* Check if there exists an entry for this address  */
     geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
-
-	//printf("Got item....\n");
 	
 	if ((geo_entry_ptr == PRGC_NIL))
         FRET (OPC_FALSE);
-
 	
-	//prg_mem_free(geo_entry_ptr);
-	
-
 	FRET(OPC_TRUE);
 	
 	}
