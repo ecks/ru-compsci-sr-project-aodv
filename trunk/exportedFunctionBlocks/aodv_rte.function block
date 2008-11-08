@@ -772,6 +772,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		
 		// MHAVH 07/11/08 - debug
 		printf("Source received its own RREQ, destroying...\n\n");
+		// END MHAVH
 		
 		FOUT;
 		}
@@ -792,6 +793,10 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		
 		manet_rte_ip_pkt_destroy (ip_pkptr);
 		op_pk_destroy (aodv_pkptr);
+		
+		// MHAVH 07/11/08 - debug
+		printf("Source has seen a RREQ with same request ID and originator address, destroying...\n\n");
+		// END MHAVH
 		
 		FOUT;
 		}
