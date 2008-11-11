@@ -1,0 +1,76 @@
+/* Includes	*/
+#include <ip_addr_v4.h>
+#include <ip_rte_support.h>
+#include <ip_rte_v4.h>
+#include <ip_dgram_sup.h>
+#include <ip_higher_layer_proto_reg_sup.h>
+#include <ip_cmn_rte_table.h>
+#include <oms_dist_support.h>
+#include <manet.h>
+#include <aodv.h>
+#include <aodv_pkt_support.h>
+#include <aodv_ptypes.h>
+#include <oms_pr.h>
+#include <math.h>
+
+
+#define PACKET_ARRIVAL  		(invoke_mode == OPC_PROINV_INDIRECT)
+#define HELLO_TIMER_EXPIRY		((invoke_mode == OPC_PROINV_DIRECT) && (intrpt_type == OPC_INTRPT_SELF) && (intrpt_code == AODVC_HELLO_TIMER_EXPIRY))
+
+// MHAVH 11/11/08 - we need to define PI in order to convert from radians to degrees
+#define PI						acos(-1)
+
+/* Traces	*/
+#define LTRACE_ACTIVE			(op_prg_odb_ltrace_active ("aodv_rte") || \
+								op_prg_odb_ltrace_active ("manet"))
+
+
+/* Prototypes	*/
+static void						aodv_rte_sv_init (void);
+static void						aodv_rte_local_stats_reg (void);
+static void						aodv_rte_attributes_parse_buffers_create (void);
+static void						aodv_rte_add_directly_connected_routes (void);
+static void						aodv_rte_pkt_arrival_handle (void);
+static void						aodv_rte_app_pkt_arrival_handle (Packet*, IpT_Dgram_Fields*, Boolean);
+static void						aodv_rte_rreq_pkt_arrival_handle (Packet*, Packet*, IpT_Dgram_Fields*, 
+														IpT_Rte_Ind_Ici_Fields*, AodvT_Packet_Option*);
+static void						aodv_rte_rrep_pkt_arrival_handle (Packet*, Packet*, IpT_Dgram_Fields*, 
+														IpT_Rte_Ind_Ici_Fields*, AodvT_Packet_Option*);
+static void						aodv_rte_rrep_hello_pkt_arrival_handle (Packet*, Packet*, IpT_Dgram_Fields*, 
+														IpT_Rte_Ind_Ici_Fields*, AodvT_Packet_Option*);
+static void						aodv_rte_rerr_pkt_arrival_handle (Packet*, Packet*, IpT_Dgram_Fields*, 
+														IpT_Rte_Ind_Ici_Fields*, AodvT_Packet_Option*);
+static void						aodv_rte_data_routes_expiry_time_update (Packet* dgram_pkptr);
+static void						aodv_rte_route_table_entry_update (IpT_Dgram_Fields*, IpT_Rte_Ind_Ici_Fields*, 
+														AodvT_Packet_Option*);
+static void						aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields*, AodvT_Packet_Option*);
+static void						aodv_rte_route_request_send (AodvT_Route_Entry*, InetT_Address, int, double, int);
+static void						aodv_rte_route_reply_send (AodvT_Rreq*, IpT_Dgram_Fields*, Boolean, AodvT_Route_Entry*, AodvT_Route_Entry*);
+static void						aodv_rte_grat_route_reply_send (AodvT_Rreq*, AodvT_Route_Entry*, AodvT_Route_Entry*);
+static void						aodv_rte_route_error_process (InetT_Address, AodvT_Route_Entry*, List*, AodvC_Rerr_Process, Boolean);
+static void						aodv_rte_all_pkts_to_dest_send (InetT_Address, AodvT_Route_Entry*, Boolean);
+static void						aodv_rte_rrep_hello_message_send (void);
+static Compcode					aodv_rte_local_repair_attempt (InetT_Address, AodvT_Route_Entry*);
+static Boolean					aodv_rte_local_repair_exists (InetT_Address, Boolean);
+static void						aodv_rte_neighbor_connectivity_table_update (InetT_Address, Boolean);
+static Packet*					aodv_rte_ip_datagram_create (Packet*, InetT_Address, AodvT_Route_Entry*, int, InetT_Address, ManetT_Nexthop_Info*);
+static double					aodv_rte_max_find (double, double);
+static void						aodv_rte_error (const char*, const char*, const char*);
+
+static void						aodv_rte_ext_route_error_send (InetT_Address unreachable_node_addr, int dest_seq_num);
+
+extern void						aodv_rte_rreq_timer_expiry_handle (void*, int);
+extern void						aodv_rte_entry_expiry_handle(void*, int);
+extern void						aodv_rte_forward_request_delete (void* addr_str, int req_id);	
+
+// MHAVH 11/11/08  - function to check whether a node is within a given area when sending rreq
+static double					aodv_rte_rreq_calculate_angle(double, double, double, double, double, double);
+static Boolean					aodv_rte_rreq_within_area(double, int);
+// MHAVH
+
+
+
+EXTERN_C_BEGIN
+static void						aodv_rte_neighbor_conn_loss_handle (void*, int);
+EXTERN_C_END
+	
