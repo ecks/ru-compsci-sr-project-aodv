@@ -99,7 +99,7 @@ AodvT_Packet_Option*
 aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean grat_rrep, Boolean dest_only,
 	Boolean unknown_seq_num, int hop_count, int rreq_id, InetT_Address dest_addr, int dest_seq_num,
 	InetT_Address src_addr, int src_seq_num, 
-	double src_x, double src_y, double dst_x, double dst_y, int angle)
+	double src_x, double src_y, double dst_x, double dst_y, int request_level)
 	{
     AodvT_Rreq*					rreq_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
@@ -132,7 +132,7 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	rreq_option_ptr->src_y = src_y;
 	rreq_option_ptr->dst_x = dst_x;
 	rreq_option_ptr->dst_y = dst_y;
-	rreq_option_ptr->angle = angle;
+	rreq_option_ptr->request_level = request_level;
 	
 	// debug	
 	own_id = op_id_self();
@@ -140,7 +140,7 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	op_ima_obj_attr_get(ppid, "name", &name);
 	
 	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
-			src_x, src_y, dst_x, dst_y, angle, op_sim_time());
+			src_x, src_y, dst_x, dst_y, request_level, op_sim_time());
 	inet_address_print(tmp_ip_addr, rreq_option_ptr->src_addr);
 	printf("  * created with src_addr of %s by %s\n", tmp_ip_addr, name);
 	// END MHAVH
@@ -336,7 +336,7 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 				rreq_option_ptr->dest_addr, rreq_option_ptr->dest_seq_num, rreq_option_ptr->src_addr,
 				rreq_option_ptr->src_seq_num,
 				rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,
-				rreq_option_ptr->angle);
+				rreq_option_ptr->request_level);
 			printf("Done copying RREQ packet\n\n");
 			
 			// MHAVH			
