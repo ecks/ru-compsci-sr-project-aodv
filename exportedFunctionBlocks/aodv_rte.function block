@@ -699,6 +699,11 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	Objid						own_id;
 	Objid						ppid;
 	AodvT_Geo_Entry*			geo_entry_ptr = OPC_NIL;
+	// 11/11/08 - added values of the current x and y positions
+	double 						curr_x;
+	double 						curr_y;
+	double 						angle; // angle between src, curr, and dst
+	
 	// MHAVH
 	
 	/** Handles the arrival of a route request message	**/
@@ -728,7 +733,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	printf("&&&RREQ Arrival with src_seq number [%d] and ttl [%d]\n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
 	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
 			rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
-			rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, rreq_option_ptr->angle, op_sim_time());	
+			rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, rreq_option_ptr->request_level, op_sim_time());	
 	inet_address_print(tmp_ip_addr , rreq_option_ptr->src_addr);
 	printf("  * received with src_addr of %s by %s\n", tmp_ip_addr, name);
 	// MHAVH
@@ -1220,6 +1225,32 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		
 		FOUT;
 		}
+	
+	
+	// MHAVH 11/11/08 - if a route request is not broadcast, calculate whether it is
+	// within the valid area
+	if(rreq_option_ptr->request_level != BROADCAST_REQUEST_LEVEL)
+		{
+		
+		own_id = op_id_self();
+		ppid = op_topo_parent(own_id);
+		op_ima_obj_attr_get (ppid, "x position", &curr_x);
+		op_ima_obj_attr_get (ppid, "y position", &curr_y);
+		angle = aodv_rte_rreq_calculate_angle(rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
+						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
+		printf(">>> NOT DONE WITH RREQ, our angle is %.5f\n", angle);
+		if(!aodv_rte_rreq_within_area(angle, rreq_option_ptr->request_level))
+			{
+            printf("Destroying RREQ packet, outside of valid range: (%.f, %.f), (%.f, %.f), (%.f, %.f), %i\n", 
+				rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
+						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, 
+											rreq_option_ptr->request_level);
+			op_pk_destroy (aodv_pkptr);
+		    manet_rte_ip_pkt_destroy (ip_pkptr);
+			FOUT;
+			}
+		}
+	// END MHAVH
 	
 	/* Rebroadcast the route request packet	*/
 	/* Decrement the TTL field by one		*/
@@ -3744,4 +3775,69 @@ aodv_rte_forward_request_delete (void* inet_addr_vptr, int req_id)
 	inet_address_destroy_dynamic (orig_addr_ptr);
 	
 	FOUT;
+	}
+
+// MHAVH 11/11/08 - calculates an angle in degrees between src node, curr node, and dst node
+static double
+aodv_rte_rreq_calculate_angle(double src_x, double src_y, 
+						double curr_x, double curr_y, double dst_x, double dst_y)
+	{
+	double a_SD_numer;
+	double a_SD_denom;
+	
+	double a_SC_numer;
+	double a_SC_denom;
+	
+	double SD_length;
+	double SC_length;
+	
+	double angle_form_numer;
+	double angle_form_denom;
+	
+	double pi = acos(-1);
+	
+	double angle;
+	
+	
+	
+	FIN (aodv_rte_rreq_calculate_angle( <args> ));
+	
+	a_SD_numer = dst_y - src_y;
+	a_SD_denom = dst_x - src_x;
+	
+	a_SC_numer = curr_y - src_y;
+	a_SC_denom = curr_x - src_x;
+	
+	SD_length = sqrt(pow(a_SD_denom, 2.0) + pow(a_SD_numer, 2.0));
+	SC_length = sqrt(pow(a_SC_denom, 2.0) + pow(a_SC_numer, 2.0));
+	
+	angle_form_numer = (a_SD_denom * a_SC_denom) + (a_SD_numer * a_SC_numer);
+	angle_form_denom = SD_length * SC_length;	
+	printf("angle_form_numer -> %.f, angle_form_denom -> %.f\n", angle_form_numer,
+				angle_form_denom);
+	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", 
+		(acos(angle_form_numer/angle_form_denom) * (180/pi)));
+	
+	angle = acos(angle_form_numer/angle_form_denom) * (180/pi);
+
+    FRET(angle);	
+
+	}
+
+// MHAVH 11/11/08 - if the angle is smaller than the request level,
+// we can forward the packet, otherwise drop it
+static Boolean
+aodv_rte_rreq_within_area(double angle, int request_level)
+	{
+	double requested_max_angle;
+	
+    FIN (aodv_rte_rreq_within_area( <args> ));
+	requested_max_angle = (request_level+1) * 45.0;
+	if(angle <= requested_max_angle)
+		{
+	    FRET(OPC_TRUE);
+		}
+
+	FRET(OPC_FALSE);
+
 	}
