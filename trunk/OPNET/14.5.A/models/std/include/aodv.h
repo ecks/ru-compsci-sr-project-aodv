@@ -206,6 +206,11 @@ typedef struct
 	Evhandle			rreq_expiry_evhandle;
 	int					current_ttl_value;
 	int					num_retries;
+   
+	// MHAVH 13/11/08 - a field for request_level
+	int					request_level;
+	// END MHAVH
+	
 	} AodvT_Orig_Request_Entry;
 
 typedef struct

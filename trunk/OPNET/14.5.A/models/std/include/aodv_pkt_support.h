@@ -75,7 +75,7 @@ typedef struct
 	double				src_y;
 	double				dst_x;
 	double				dst_y;
-	int					angle;
+	int					request_level;
 	// END MHAVH
 	} AodvT_Rreq;
 

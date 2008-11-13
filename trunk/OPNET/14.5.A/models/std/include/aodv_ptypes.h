@@ -58,8 +58,12 @@ int 						aodv_packet_queue_num_pkts_get (AodvT_Packet_Queue*, InetT_Address);
 
 /* aodv_request_table function prototypes	*/
 AodvT_Request_Table*		aodv_request_table_create (double, int, InetT_Addr_Family);
-void						aodv_request_table_orig_rreq_insert (AodvT_Request_Table*, int, InetT_Address,
-																	int, double, int);
+
+// MHAVH 13/11/08 - an extra parameter that corresponds to request level
+void						aodv_request_table_orig_rreq_insert_geo (AodvT_Request_Table*, int, InetT_Address,
+																	int, double, int, int);
+// END MHAVH
+
 void						aodv_request_table_forward_rreq_insert (AodvT_Request_Table*, int, InetT_Address);
 Boolean						aodv_route_request_forward_entry_exists (AodvT_Request_Table*, int, InetT_Address);
 Boolean						aodv_request_table_orig_rreq_exists (AodvT_Request_Table*, InetT_Address);
