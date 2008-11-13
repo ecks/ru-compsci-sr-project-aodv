@@ -51,9 +51,11 @@ aodv_request_table_create (double expiry_time, int max_retries, InetT_Addr_Famil
 	}
 
 
+// MHAVH 11/13/08 - insert an rreq entry with the broadcast level included
 void
-aodv_request_table_orig_rreq_insert (AodvT_Request_Table* req_table_ptr, int req_id, InetT_Address dest_address, 
-										int ttl_value, double request_expiry_time, int rreq_retry)
+aodv_request_table_orig_rreq_insert_geo (AodvT_Request_Table* req_table_ptr, int req_id, InetT_Address dest_address, 
+										int ttl_value, double request_expiry_time, int rreq_retry, int request_timer,
+												int request_level)
 	{
 	AodvT_Orig_Request_Entry*	req_entry_ptr;
 	void*						old_contents_ptr;
@@ -71,6 +73,10 @@ aodv_request_table_orig_rreq_insert (AodvT_Request_Table* req_table_ptr, int req
 	req_entry_ptr->current_request_expiry_time = request_expiry_time;
 	req_entry_ptr->num_retries = rreq_retry;
 	
+	// MHAVH 13/11/08 - our request level for sending a rreq
+	req_entry_ptr->request_level = request_level;
+	// END MHAVH
+	
 	/* Allocate memory for the request ID	*/
 	req_id_ptr = (int*) op_prg_mem_alloc (sizeof (int));
 	*req_id_ptr = req_id;
@@ -85,6 +91,41 @@ aodv_request_table_orig_rreq_insert (AodvT_Request_Table* req_table_ptr, int req
 	FOUT;
 	}
 
+/**
+void
+aodv_request_table_orig_rreq_insert (AodvT_Request_Table* req_table_ptr, int req_id, InetT_Address dest_address, 
+										int ttl_value, double request_expiry_time, int rreq_retry)
+	{
+	AodvT_Orig_Request_Entry*	req_entry_ptr;
+	void*						old_contents_ptr;
+	int*						req_id_ptr;
+	**/
+	/** Inserts a new request ID into the originating request table	**/
+//	FIN (aodv_request_table_orig_rreq_insert (<args>));
+	
+	/* Create an entry for this new request	*/
+/**	req_entry_ptr = aodv_request_table_orig_entry_mem_alloc ();
+	req_entry_ptr->target_address = inet_address_copy (dest_address);
+	req_entry_ptr->request_id = req_id;
+	req_entry_ptr->current_ttl_value = ttl_value;
+	req_entry_ptr->insert_time = op_sim_time ();
+	req_entry_ptr->current_request_expiry_time = request_expiry_time;
+	req_entry_ptr->num_retries = rreq_retry; **/
+	
+	/* Allocate memory for the request ID	*/
+/**	req_id_ptr = (int*) op_prg_mem_alloc (sizeof (int));
+	*req_id_ptr = req_id;
+	
+	req_entry_ptr->rreq_expiry_evhandle = 
+		op_intrpt_schedule_call (req_entry_ptr->insert_time + req_entry_ptr->current_request_expiry_time, 
+								AODVC_ROUTE_REQUEST_EXPIRY, aodv_rte_rreq_timer_expiry_handle, req_id_ptr);
+**/			
+	/* Insert this new request into the request table	*/
+/**	prg_bin_hash_table_item_insert (req_table_ptr->orig_request_table, (void *) &req_id, req_entry_ptr, &old_contents_ptr);
+	
+	FOUT;
+	}
+**/
 
 void
 aodv_request_table_forward_rreq_insert (AodvT_Request_Table* req_table_ptr, int req_id, InetT_Address originator_addr)

@@ -655,7 +655,10 @@ aodv_rte_app_pkt_arrival_handle (Packet* ip_pkptr, IpT_Dgram_Fields* ip_dgram_fd
 				
 			/* Broadcast a route request packet to find a route	*/
 			/* to the destination of the incoming data packet	*/
-			aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0);
+			
+			// MHAVH 13/11/08 - we send the initial route request with INITIAL_REQUEST_LEVEL
+			aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL);
+			// END MHAVH
 			}
 	
 		/* Queue the application packet in the packet queue	*/
@@ -2105,8 +2108,10 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 	}
 
 
+// MHAVH 13/11/08 - added a parameter which is the request_level we are sending with 
 static void
-aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address dest_addr, int ttl_value, double request_expiry_time, int rreq_retry)
+aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address dest_addr, int ttl_value, double request_expiry_time, int rreq_retry,
+														int request_level)
 	{
 	int							dest_seq_num;
 	AodvT_Packet_Option*		rreq_option_ptr;
@@ -2167,7 +2172,7 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
 								src_x, src_y,
 								geo_entry_ptr->dst_x, geo_entry_ptr->dst_y,
-								INITIAL_REQUEST_LEVEL);	
+								request_level);	
 		}
 	else
 		{
@@ -2234,8 +2239,8 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 		}
 	
 	/* Insert the route request in the request table	*/
-	aodv_request_table_orig_rreq_insert (request_table_ptr, route_request_id, dest_addr, 
-											ttl_value, request_expiry_time, rreq_retry);
+	aodv_request_table_orig_rreq_insert_geo (request_table_ptr, route_request_id, dest_addr, 
+											ttl_value, request_expiry_time, rreq_retry, request_level);
 	
 	/* Update the statistics for the routing traffic sent	*/
 	aodv_support_routing_traffic_sent_stats_update (local_stat_handle_ptr, global_stat_handle_ptr, 
@@ -3236,6 +3241,10 @@ aodv_rte_rreq_timer_expiry_handle (void* rreq_id_ptr1, int PRG_ARG_UNUSED(code))
 	int								req_id;
 	double							ring_traversal_time;
 	
+	// MHAVH 13/11/08 - last known hop count for the destination
+	int 							last_known_hop_count;
+	// END MHAVH
+	
 	/** The route request timer has expired. Resend	**/
 	/** a new route request if possible				**/
 	FIN (aodv_rte_rreq_timer_expiry_handle (<args>));
@@ -3267,31 +3276,74 @@ aodv_rte_rreq_timer_expiry_handle (void* rreq_id_ptr1, int PRG_ARG_UNUSED(code))
 		}
 	else if (request_entry_ptr->num_retries >= request_table_ptr->max_rreq_retries)
 		{
+		// MHAVH 13/11/08 - if the broadcast level is reached, the destination is unreachable
+		if(request_entry_ptr->request_level == BROADCAST_REQUEST_LEVEL)
+			{
 		
-		/* There are packets queued to the destination.	*/
-		/* No more route request retries are possible	*/
-		/* as the maximum retries have been reached.	*/
+			/* There are packets queued to the destination.	*/
+			/* No more route request retries are possible	*/
+			/* as the maximum retries have been reached.	*/
 		
-		/* Send out a route error message to the source	*/
-		/* of the route request if it is not this node	*/
-		aodv_rte_route_error_process (request_entry_ptr->target_address, 
+			/* Send out a route error message to the source	*/
+			/* of the route request if it is not this node	*/
+			aodv_rte_route_error_process (request_entry_ptr->target_address, 
 									  aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address),
 									  OPC_NIL, AodvC_Data_Packet_No_Route, OPC_FALSE);
 		
-		/* If this was a local repair attempt, remove	*/
-		/* it from the queue of local repair nodes		*/
-		if (local_repair)
-			aodv_rte_local_repair_exists (request_entry_ptr->target_address, OPC_TRUE);
+			/* If this was a local repair attempt, remove	*/
+			/* it from the queue of local repair nodes		*/
+			if (local_repair)
+				aodv_rte_local_repair_exists (request_entry_ptr->target_address, OPC_TRUE);
 		
-		/* Discard all data packets queued to this		*/
-		/* destination address							*/
-		if (LTRACE_ACTIVE)
-			{
-			op_prg_odb_print_major (pid_string, "Request Retries Limit Reached. \
-				Dropping all buffered packets.", OPC_NIL);
+			/* Discard all data packets queued to this		*/
+			/* destination address							*/
+			if (LTRACE_ACTIVE)
+				{
+				op_prg_odb_print_major (pid_string, "Request Retries Limit Reached. \
+					Dropping all buffered packets.", OPC_NIL);
+				}
+		
+			aodv_packet_queue_all_pkts_to_dest_delete (pkt_queue_ptr, request_entry_ptr->target_address);
 			}
-		
-		aodv_packet_queue_all_pkts_to_dest_delete (pkt_queue_ptr, request_entry_ptr->target_address);
+		else
+			{
+			
+			// MHAVH 13/11/08 - the request level is not broadcast, increase the request level
+			
+			/* The hop count stored in an invalid routing table	*/
+			/* entry indicates the last known hop count to that	*/
+			/* destination. When a new route to the same 		*/
+			/* desination is required, the TTL in the RREQ is	*/
+			/* initially set to the last known hop count plus	*/
+			/* the TTL_INCREMENT. Check if there is a last 		*/
+			/* known hop count to the destination.				*/
+			/* Check if the destination was previous known but	*/
+			/* is marked invalid or whether it expired			*/
+			if (aodv_route_table_entry_param_get (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
+							AODVC_ROUTE_ENTRY_HOP_COUNT, &last_known_hop_count) == OPC_COMPCODE_FAILURE)
+				{
+				/* No route entry exists for the destination	*/
+				/* Set the initial TTL to TTL_START				*/
+				new_ttl_value = ttl_start;
+				}
+			else
+				{
+				/* An invalid routing table entry exists		*/
+				new_ttl_value = last_known_hop_count + ttl_increment;
+				}
+	
+			/* Calculate the ring traversal time by which a 	*/
+			/* RREP message should be received					*/
+			ring_traversal_time = 2.0 * node_traversal_time * (new_ttl_value  + timeout_buffer);
+			
+			// MHAVH 13/11/08 - reset the number of retries to 0, increase the request level
+			request_entry_ptr->num_retries = 0;
+			request_entry_ptr->request_level++;
+			// END MHAVH
+			aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
+									 request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
+													request_entry_ptr->request_level);
+			}
 		}
 	else
 		{
@@ -3344,8 +3396,11 @@ aodv_rte_rreq_timer_expiry_handle (void* rreq_id_ptr1, int PRG_ARG_UNUSED(code))
 		/* Send out a new route request packet			*/
 		request_entry_ptr->num_retries++;
 			
+		// MHAVH 13/11/08 - send a route request with the current request level, since the max number of rreq retries hasn't been reached
 		aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
-									 request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries);
+									 request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
+													request_entry_ptr->request_level);
+		// MHAVH
 		}
 
 	op_prg_mem_free (req_id_ptr);
@@ -3402,7 +3457,10 @@ aodv_rte_local_repair_attempt (InetT_Address dest_addr, AodvT_Route_Entry* route
 	ring_traversal_time = 2.0 * node_traversal_time * (ttl_value  + timeout_buffer);
 		
 	/* Broadcast a route request	*/
-	aodv_rte_route_request_send (route_entry_ptr, dest_addr, ttl_value, ring_traversal_time, 0);
+	
+	// MHAVH 13/11/08 - broadcast a route request, since we want to have a default value for when local repair exists
+	aodv_rte_route_request_send (route_entry_ptr, dest_addr, ttl_value, ring_traversal_time, 0, BROADCAST_REQUEST_LEVEL);
+	// END MHAVH
 	
 	/* Insert this destination into the list of	destinations	*/
 	/* that this node is performing local repair.				*/
