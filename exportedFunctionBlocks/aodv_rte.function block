@@ -1978,6 +1978,10 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 			if(aodv_geo_table_entry_exists(geo_table_ptr, geo_entry_addr))
 				{
 				printf("!!!Assertion error: there is no route to the destination but there is a geo entry\n");
+				geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, geo_entry_addr, OPC_FALSE);
+				printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, 
+															op_sim_time());
+				printf("Time when the entry was added: %f\n", geo_entry_ptr->insert_time);
 				aodv_geo_table_entry_delete(geo_table_ptr, geo_entry_addr);
 				}
 			aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y);

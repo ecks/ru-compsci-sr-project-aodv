@@ -54,7 +54,7 @@ aodv_request_table_create (double expiry_time, int max_retries, InetT_Addr_Famil
 // MHAVH 11/13/08 - insert an rreq entry with the broadcast level included
 void
 aodv_request_table_orig_rreq_insert_geo (AodvT_Request_Table* req_table_ptr, int req_id, InetT_Address dest_address, 
-										int ttl_value, double request_expiry_time, int rreq_retry, int request_timer,
+										int ttl_value, double request_expiry_time, int rreq_retry,
 												int request_level)
 	{
 	AodvT_Orig_Request_Entry*	req_entry_ptr;
