@@ -732,7 +732,6 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "name", &name);
-	
 	printf("&&&RREQ Arrival with src_seq number [%d] and ttl [%d]\n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
 	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
 			rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
