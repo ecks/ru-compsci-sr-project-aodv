@@ -92,7 +92,7 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 		/* Insert this new request into the request table	*/
 		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d\n", addr_str, (int) &dst_address);
 		inet_addr_hash_table_item_insert(geo_table_ptr->geo_table, &dst_address, geo_entry_ptr, PRGC_NIL);
-//		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table, (void *) &dst_address, 
+//		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table,  &(dst_address.address.ipv4_addr), 
 //										geo_entry_ptr, PRGC_NIL);
 		}
 	
@@ -113,16 +113,22 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 	FIN (aodv_geo_table_entry_get (<args>));
 	
 	inet_address_print (addr_str, dst_address);
-	printf("^^^^^^^^^^^^^^^^Getting Dest %s with key %d\n", addr_str, (int) &dst_address);
-
 	
 	if (remove)
+		{
+		printf("^^^^^^^^^^^^^^^^REMOVING Dest %s with key %d\n", addr_str, (int) &dst_address);
 		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
 		// prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, (void *) &dst_address);
+		}
 	else
+		{
+		printf("^^^^^^^^^^^^^^^^GETTING Dest %s with key %d\n", addr_str, (int) &dst_address);
 		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
 		//prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
-	
+		}
+
+	inet_address_print (addr_str, geo_entry_ptr->dst_address);
+	printf("^^^^^^^^^^^^^^^^OBTAINED Dest %s \n", addr_str);
 	FRET (geo_entry_ptr);
 	}
 
