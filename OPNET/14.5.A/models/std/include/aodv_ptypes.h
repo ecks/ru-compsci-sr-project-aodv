@@ -72,12 +72,12 @@ void						aodv_route_request_orig_entry_delete (AodvT_Request_Table*, InetT_Addr
 void						aodv_request_table_orig_entry_mem_free (AodvT_Orig_Request_Entry*);
 
 // MHAVH 10/27/08 - aodv_geo_table function prototypes */
-AodvT_Geo_Table* 			aodv_geo_table_create ();
+AodvT_Geo_Table* 			aodv_geo_table_create (InetT_Addr_Family hash_key_addr_family);
 void						aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, 
 										double dst_x, double dst_y);
 Boolean						aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
 AodvT_Geo_Entry*			aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove);
-void						aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
+Compcode						aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
 void						aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr);
 // MHAVH
 
