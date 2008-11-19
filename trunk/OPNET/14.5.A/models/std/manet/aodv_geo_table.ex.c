@@ -13,7 +13,7 @@ static AodvT_Geo_Entry*		aodv_geo_table_entry_mem_alloc(void);
 
 /************************ begin modified from aodv_request_table *******************/
 AodvT_Geo_Table*
-aodv_geo_table_create (
+aodv_geo_table_create (InetT_Addr_Family hash_key_addr_family
 	//double expiry_time - not sure if we need it???
 						)
 	{
@@ -28,7 +28,11 @@ aodv_geo_table_create (
 	/* Create the Hash tables.						*/
 	// 4 ==> The base-2 log of the desired size (in cells) of the hash table. 
 	// sizeof (int) ==> The maximum number of bytes from the key that should be used when computing the hash value. 
-	geo_table_ptr->geo_table = prg_bin_hash_table_create (4, sizeof (int));
+	if (hash_key_addr_family == InetC_Addr_Family_v4)
+		geo_table_ptr->geo_table = inet_addr_hash_table_create (100, 0);
+	else
+		geo_table_ptr->geo_table = inet_addr_hash_table_create (0, 100);
+	//geo_table_ptr->geo_table = prg_bin_hash_table_create (4, sizeof (int));
 	
 	
 	FRET (geo_table_ptr);
@@ -44,7 +48,8 @@ aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_ad
     FIN (aodv_geo_table_entry_exists (<args>));
     
 	/* Check if there exists an entry for this address  */
-    geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
+    geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
+	//prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
 	
 	if ((geo_entry_ptr == PRGC_NIL))
         FRET (OPC_FALSE);
@@ -72,8 +77,8 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address))
 		{
 			printf("^^^^^^^^^^^^^^^^Entry for %s Exists. Insert is omitted!!!\n",addr_str);
-			printf("^^^^^^^^^^^^^^^^Currently we have %d items in GEO TABLE!!!\n",
-				prg_bin_hash_table_num_items_get(geo_table_ptr->geo_table));
+		//	printf("^^^^^^^^^^^^^^^^Currently we have %d items in GEO TABLE!!!\n",
+		//		prg_bin_hash_table_num_items_get(geo_table_ptr->geo_table));
 		}
 	else
 		{
@@ -85,9 +90,10 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 		geo_entry_ptr->dst_y = dst_y;
 		
 		/* Insert this new request into the request table	*/
-		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d\n", addr_str, &dst_address);
-		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table, (void *) &dst_address, 
-										geo_entry_ptr, PRGC_NIL);
+		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d\n", addr_str, (int) &dst_address);
+		inet_addr_hash_table_item_insert(geo_table_ptr->geo_table, &dst_address, geo_entry_ptr, PRGC_NIL);
+//		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table, (void *) &dst_address, 
+//										geo_entry_ptr, PRGC_NIL);
 		}
 	
 
@@ -107,18 +113,20 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 	FIN (aodv_geo_table_entry_get (<args>));
 	
 	inet_address_print (addr_str, dst_address);
-	printf("^^^^^^^^^^^^^^^^Getting Dest %s with key %d\n", addr_str, &dst_address);
+	printf("^^^^^^^^^^^^^^^^Getting Dest %s with key %d\n", addr_str, (int) &dst_address);
 
 	
 	if (remove)
-		geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, (void *) &dst_address);
+		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
+		// prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, (void *) &dst_address);
 	else
-		geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
+		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
+		//prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
 	
 	FRET (geo_entry_ptr);
 	}
 
-void
+Compcode
 aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
 	{
 	AodvT_Geo_Entry*	geo_entry_ptr;
@@ -129,13 +137,18 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	
 	// Print dest address for debugging
 	inet_address_print (addr_str, dst_address);	
-	printf("^^^^^^^^^^^^^^^^Deleting Dest %s with key %d\n", addr_str, &dst_address);
-	geo_entry_ptr = (AodvT_Geo_Entry *) prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 	(void *) &dst_address);
+	printf("^^^^^^^^^^^^^^^^Deleting Dest %s with key %d\n", addr_str, (int) &dst_address);
+	
+	geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_remove(geo_table_ptr->geo_table, &dst_address);
+	// prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 	(void *) &dst_address);
 
+	if (geo_entry_ptr == OPC_NIL)
+		FRET (OPC_COMPCODE_FAILURE);
+	
 	/* Free the request entry	*/
 	aodv_geo_table_entry_mem_free (geo_entry_ptr);
 	
-	FOUT;
+	FRET (OPC_COMPCODE_SUCCESS);
 	}
 
 void

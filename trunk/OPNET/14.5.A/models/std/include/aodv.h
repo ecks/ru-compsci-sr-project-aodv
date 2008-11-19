@@ -257,7 +257,7 @@ typedef struct
 /* its x and y geo coordinates.                     */
 typedef struct
 	{
-	PrgT_Bin_Hash_Table*	geo_table;
+	InetT_Address_Hash_Table_Handle	geo_table;
 	} AodvT_Geo_Table;
 
 typedef struct
