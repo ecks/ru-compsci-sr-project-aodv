@@ -156,6 +156,7 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	
 	FRET (OPC_COMPCODE_SUCCESS);
 	}
+		
 
 void
 aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr)

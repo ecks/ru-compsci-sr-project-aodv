@@ -1462,9 +1462,13 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			printf("!!!Assertion error: there is no route to the destination but there is a geo entry\n");
 			aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
 			}
-		   
-		aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
+		
+		if((rrep_option_ptr->dst_x != -1) || (rrep_option_ptr->dst_y != -1))
+			{
+			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
 								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+			}
+		
 		// MHAVH
 	
 		/* Send all packets queued to this destination	*/
@@ -1541,10 +1545,13 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 				printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
 				aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
 				}
-			   
-			// insert the new entry into the geo table
-			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
+			
+			if((rrep_option_ptr->dst_x != -1) || (rrep_option_ptr->dst_y != -1))
+				{
+				// insert the new entry into the geo table
+				aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
 						rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+				}
 			
 			// MHAVH
 		
@@ -2386,12 +2393,22 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 		printf("$$$Creating RREP with dest_sequence number of [%d] and ttl [%d]\n", dest_seq_num, ip_dgram_fd_ptr->ttl);
 		printf("This node IS an intermediate that has a route to the DESTINATION\n");
 		
-		geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->dest_addr, OPC_FALSE);
-		
-		// debugging information inside
-		rrep_option_ptr = aodv_pkt_support_rrep_option_create_geo (OPC_FALSE, ack_required, hop_count, 
-			rreq_option_ptr->dest_addr, dest_seq_num, rreq_option_ptr->src_addr, lifetime, AODVC_ROUTE_REPLY,
-				geo_entry_ptr->dst_x, geo_entry_ptr->dst_y);
+		// MHAVH 11/20/08 - an intermediate node may not necessarily have a geo location for it
+		if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->dest_addr))
+			{
+			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->dest_addr, OPC_FALSE);
+			// debugging information inside
+			rrep_option_ptr = aodv_pkt_support_rrep_option_create_geo (OPC_FALSE, ack_required, hop_count, 
+					rreq_option_ptr->dest_addr, dest_seq_num, rreq_option_ptr->src_addr, lifetime, AODVC_ROUTE_REPLY,
+					geo_entry_ptr->dst_x, geo_entry_ptr->dst_y);
+			}
+		else
+			{
+			// debugging information inside
+			rrep_option_ptr = aodv_pkt_support_rrep_option_create_geo (OPC_FALSE, ack_required, hop_count, 
+						rreq_option_ptr->dest_addr, dest_seq_num, rreq_option_ptr->src_addr, lifetime, AODVC_ROUTE_REPLY,
+						-1, -1);
+			}	
 		
 		// END MHAVH
 		
