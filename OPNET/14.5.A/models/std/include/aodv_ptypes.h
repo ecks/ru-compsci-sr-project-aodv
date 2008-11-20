@@ -77,7 +77,7 @@ void						aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address d
 										double dst_x, double dst_y);
 Boolean						aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
 AodvT_Geo_Entry*			aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove);
-Compcode						aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
+Compcode					aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
 void						aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr);
 // MHAVH
 
