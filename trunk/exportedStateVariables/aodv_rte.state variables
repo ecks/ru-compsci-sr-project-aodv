@@ -215,3 +215,4 @@ InetT_Addr_Family	\aodv_addressing_mode;
 /* This table contains the routes external hosts (non-MANET hosts). */
 Manet_Rte_Ext_Cache_Table*	\external_routes_cache_table_ptr;
 
+

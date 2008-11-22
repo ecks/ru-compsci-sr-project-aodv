@@ -436,7 +436,7 @@ aodv_rte_pkt_arrival_handle (void)
 			{
 			/* This is a RREP Hello packet	*/
 			// MHAVH == DEBUG (not necessary yet, gets in the way of real messages)
-			//printf("+++++ HELLO arrival\n\n");
+			printf("+++++ HELLO arrival\n\n");
 			aodv_rte_rrep_hello_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -1463,7 +1463,7 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
 			}
 		
-		if((rrep_option_ptr->dst_x != -1) || (rrep_option_ptr->dst_y != -1))
+		if((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
 			{
 			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
 								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
@@ -1546,7 +1546,7 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 				aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
 				}
 			
-			if((rrep_option_ptr->dst_x != -1) || (rrep_option_ptr->dst_y != -1))
+			if((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
 				{
 				// insert the new entry into the geo table
 				aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
@@ -2407,7 +2407,7 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 			// debugging information inside
 			rrep_option_ptr = aodv_pkt_support_rrep_option_create_geo (OPC_FALSE, ack_required, hop_count, 
 						rreq_option_ptr->dest_addr, dest_seq_num, rreq_option_ptr->src_addr, lifetime, AODVC_ROUTE_REPLY,
-						-1, -1);
+						DEFAULT_X, DEFAULT_Y);
 			}	
 		
 		// END MHAVH
