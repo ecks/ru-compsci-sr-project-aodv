@@ -75,3 +75,4 @@ EXTERN_C_BEGIN
 static void						aodv_rte_neighbor_conn_loss_handle (void*, int);
 EXTERN_C_END
 	
+
