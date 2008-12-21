@@ -2,7 +2,7 @@
 #labels geo-aodv-paper
 
 
- * aodv_rte_route_request_send – gets called whenever a control route request packet needs to be generated because either there is no available route to the destination or the route is stale.  
- * aodv_rte_route_reply_send – gets called whenever a control route reply packet needs to be generated because either the destination corresponding to a received route request is known by an intermediate node, or the destination is the node itself. 
- * aodv_rte_rreq_pkt_arrival_handle – gets called whenever the packet received by the process model is a control route request packet according to aodv_rte_pkt_arrival_handle
+ * aodv_rte_route_request_send – gets called whenever a control route request packet needs to be generated because either there is no available route to the destination or the route is stale. Our implementation adds five extra parameters to the route request control packet: *src_x*, *src_y*, *request_level*, *dst_x*, and *dst_y*.  
+ * aodv_rte_route_reply_send – gets called whenever a control route reply packet needs to be generated because either the destination corresponding to a received route request is known by an intermediate node, or the destination is the node itself. Our implementation addes two extra parameters to the route reply control packet: *dst_x, and *dst_y*.
+ * aodv_rte_rreq_pkt_arrival_handle – gets called whenever the packet received by the process model is a control route request packet according to aodv_rte_pkt_arrival_handle. 
  * aodv_rte_rrep_pkg_arrival_handle - gets called whenever the packet received by the process model is a control route reply packet according to aodv_rte_pkt_arrival_handle
