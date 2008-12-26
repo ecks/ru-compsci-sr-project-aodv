@@ -144,6 +144,9 @@ aodv_rte_attributes_parse_buffers_create (void)
 	op_ima_obj_attr_get (aodv_parms_child_id, "Local Repair", &local_repair);
 	op_ima_obj_attr_get (aodv_parms_child_id, "Addressing Mode", &addressing_mode);
 	
+	/* MHAVH 22/12/08 - read in whether geo routing is set, and if it is, what type of algorithm to use */
+	op_ima_obj_attr_get (aodv_parms_child_id, "Geo Routing", &geo_routing);
+	
 	/* Read in the TTL parameters	*/
 	op_ima_obj_attr_get (aodv_parms_child_id, "TTL Parameters", &ttl_parms_id);
 	ttl_parms_child_id = op_topo_child (ttl_parms_id, OPC_OBJTYPE_GENERIC, 0);
@@ -425,8 +428,6 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_ROUTE_ERROR):
 			{
 			/* This is a route error option	*/
-			// MHAVH == DEBUG
-			printf("+++++ ERROR arrival\n\n");
 			aodv_rte_rerr_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -435,8 +436,6 @@ aodv_rte_pkt_arrival_handle (void)
 		case (AODVC_HELLO):
 			{
 			/* This is a RREP Hello packet	*/
-			// MHAVH == DEBUG (not necessary yet, gets in the way of real messages)
-			printf("+++++ HELLO arrival\n\n");
 			aodv_rte_rrep_hello_pkt_arrival_handle (ip_pkptr, aodv_pkptr, ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 			
 			break;
@@ -445,8 +444,6 @@ aodv_rte_pkt_arrival_handle (void)
 		default:
 			{
 			/* Invalid option in packet	*/
-			// MHAVH == DEBUG
-			printf("+++++ INVALID arrival\n\n");
 			aodv_rte_error ("Invalid Option Type in AODV packet", OPC_NIL, OPC_NIL);
 			}	
 		}
@@ -656,9 +653,17 @@ aodv_rte_app_pkt_arrival_handle (Packet* ip_pkptr, IpT_Dgram_Fields* ip_dgram_fd
 			/* Broadcast a route request packet to find a route	*/
 			/* to the destination of the incoming data packet	*/
 			
-			// MHAVH 13/11/08 - we send the initial route request with INITIAL_REQUEST_LEVEL
-			aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL);
-			// END MHAVH
+			// MHAVH 12/26/08 - if the user wants no geo routing, we broadcast every time
+			if(geo_routing != 0)
+				{
+				// MHAVH 13/11/08 - we send the initial route request with INITIAL_REQUEST_LEVEL
+				aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL);
+				}
+			else
+				{
+				aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0, BROADCAST_REQUEST_LEVEL);				
+				}
+				// END MHAVH
 			}
 	
 		/* Queue the application packet in the packet queue	*/
@@ -1242,7 +1247,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	// MHAVH 11/11/08 - if a route request is not broadcast, calculate whether it is
 	// within the valid area
-	if(rreq_option_ptr->request_level != BROADCAST_REQUEST_LEVEL)
+	if(rreq_option_ptr->request_level != BROADCAST_REQUEST_LEVEL && geo_routing != 0)
 		{
 		
 		own_id = op_id_self();
