@@ -1244,16 +1244,16 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		FOUT;
 		}
 	
+	// MHAVH 12/26/08 - first we need to get the position of the current node
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get (ppid, "x position", &curr_x);
+	op_ima_obj_attr_get (ppid, "y position", &curr_y);
 	
 	// MHAVH 11/11/08 - if a route request is not broadcast, calculate whether it is
 	// within the valid area
 	if(rreq_option_ptr->request_level != BROADCAST_REQUEST_LEVEL && geo_routing != 0)
 		{
-		
-		own_id = op_id_self();
-		ppid = op_topo_parent(own_id);
-		op_ima_obj_attr_get (ppid, "x position", &curr_x);
-		op_ima_obj_attr_get (ppid, "y position", &curr_y);
 		angle = aodv_rte_rreq_calculate_angle(rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
 						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
 		printf(">>> NOT DONE WITH RREQ, our angle is %.5f\n", angle);
@@ -1266,6 +1266,25 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			op_pk_destroy (aodv_pkptr);
 		    manet_rte_ip_pkt_destroy (ip_pkptr);
 			FOUT;
+			}
+		}
+	// MHAVH 12/26/08 - geo routing based on a destination
+	else if(geo_routing == 2)
+		{
+		if(!aodv_rte_rreq_within_distance(rreq_option_ptr->src_x, rreq_option_ptr->src_y,
+					curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y))
+			{
+            printf("Destroying RREQ packet, outside of valid range in distance: (%.f, %.f), (%.f, %.f), (%.f, %.f)\n", 
+				rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
+						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
+			op_pk_destroy (aodv_pkptr);
+		    manet_rte_ip_pkt_destroy (ip_pkptr);
+			FOUT;
+			}			
+		else
+			{
+			rreq_option_ptr->src_x = curr_x;
+			rreq_option_ptr->src_y = curr_y;
 			}
 		}
 	// END MHAVH
@@ -3934,4 +3953,33 @@ aodv_rte_rreq_within_area(double angle, int request_level)
 
 	FRET(OPC_FALSE);
 
+	}
+
+static Boolean
+aodv_rte_rreq_within_distance(double src_x, double src_y,
+					double curr_x, double curr_y, double dst_x, double dst_y)
+	{
+	double distanceDS_x;
+	double distanceDS_y;
+	double lengthDS;
+	
+	double distanceDC_x;
+	double distanceDC_y;
+	double lengthDC;
+	
+	FIN (aodv_rte_rreq_within_distance( <args> ));
+	distanceDS_x = dst_x - src_x;
+	distanceDS_y = dst_y - src_y;
+	distanceDC_x = dst_x - curr_x;
+	distanceDC_y = dst_y - curr_y;
+	
+	lengthDS = sqrt(pow(distanceDS_x, 2.0) + pow(distanceDS_y, 2.0));
+	lengthDC = sqrt(pow(distanceDC_x, 2.0) + pow(distanceDC_y, 2.0));
+	
+	if(lengthDC <= lengthDS)
+		{
+		FRET(OPC_TRUE);
+		}
+	
+	FRET(OPC_FALSE);
 	}
