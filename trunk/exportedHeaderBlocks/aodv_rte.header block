@@ -67,6 +67,8 @@ extern void						aodv_rte_forward_request_delete (void* addr_str, int req_id);
 // MHAVH 11/11/08  - function to check whether a node is within a given area when sending rreq
 static double					aodv_rte_rreq_calculate_angle(double, double, double, double, double, double);
 static Boolean					aodv_rte_rreq_within_area(double, int);
+// MHAVH 12/26/08 - function to check whether a node is within a given distance when sending rreq
+static Boolean					aodv_rte_rreq_within_distance(double, double, double, double, double, double);
 // MHAVH
 
 
@@ -75,4 +77,3 @@ EXTERN_C_BEGIN
 static void						aodv_rte_neighbor_conn_loss_handle (void*, int);
 EXTERN_C_END
 	
-
