@@ -55,7 +55,8 @@ static void						aodv_rte_rrep_hello_message_send (void);
 static Compcode					aodv_rte_local_repair_attempt (InetT_Address, AodvT_Route_Entry*);
 static Boolean					aodv_rte_local_repair_exists (InetT_Address, Boolean);
 static void						aodv_rte_neighbor_connectivity_table_update (InetT_Address, Boolean);
-static Packet*					aodv_rte_ip_datagram_create (Packet*, InetT_Address, AodvT_Route_Entry*, int, InetT_Address, ManetT_Nexthop_Info*);
+// MHAVH - 03/16/09 - include parameter for type of control packet
+static Packet*					aodv_rte_ip_datagram_create (Packet*, InetT_Address, AodvT_Route_Entry*, int, InetT_Address, ManetT_Nexthop_Info*, int);
 static double					aodv_rte_max_find (double, double);
 static void						aodv_rte_error (const char*, const char*, const char*);
 

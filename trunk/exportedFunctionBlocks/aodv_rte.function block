@@ -1296,13 +1296,15 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* Encapsulate the RREQ packet in an IP datagram	*/
 	if (inet_address_family_get (&rreq_option_ptr->dest_addr) == InetC_Addr_Family_v4)
 		{
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rreq_pkptr = aodv_rte_ip_datagram_create (aodv_pkptr, InetI_Broadcast_v4_Addr, OPC_NIL, new_ttl_value,
-			InetI_Broadcast_v4_Addr, OPC_NIL);
+			InetI_Broadcast_v4_Addr, OPC_NIL, AODVC_ROUTE_REQUEST);
 		}
 	else
 		{
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rreq_pkptr = aodv_rte_ip_datagram_create (aodv_pkptr, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL,
-			new_ttl_value, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL);
+			new_ttl_value, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL, AODVC_ROUTE_REQUEST);
 		
 		/* Install the ICI for IPv6 case */
 		ip_iciptr = op_ici_create ("ip_rte_req_v4");
@@ -1675,8 +1677,9 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		manet_nexthop_info_ptr = (ManetT_Nexthop_Info *) op_prg_mem_alloc (sizeof (ManetT_Nexthop_Info));
 		
 		/* Encapsulate the AODV packet in a new IP datagram	*/
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rrep_pkptr = aodv_rte_ip_datagram_create (aodv_pkptr, rrep_option_ptr->src_addr, fwd_path_entry_ptr,
-			IPC_DEFAULT_TTL, next_hop_addr, manet_nexthop_info_ptr);
+			IPC_DEFAULT_TTL, next_hop_addr, manet_nexthop_info_ptr, AODVC_ROUTE_REPLY);
 	
 		/* Update the statistics for the routing traffic sent	*/
 		aodv_support_routing_traffic_sent_stats_update (local_stat_handle_ptr, global_stat_handle_ptr, ip_rrep_pkptr);
@@ -2255,8 +2258,9 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 		rreq_pkptr = aodv_pkt_support_pkt_create (rreq_option_ptr, AODVC_RREQ_IPV4_SIZE);
 	
 		/* Encapsulate the AODV packet in an IP datagram	*/
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rreq_pkptr = aodv_rte_ip_datagram_create (rreq_pkptr, InetI_Broadcast_v4_Addr, OPC_NIL,
-			ttl_value, InetI_Broadcast_v4_Addr, OPC_NIL);
+			ttl_value, InetI_Broadcast_v4_Addr, OPC_NIL, AODVC_ROUTE_REQUEST);
 		}
 	else
 		{
@@ -2266,8 +2270,9 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 		rreq_pkptr = aodv_pkt_support_pkt_create (rreq_option_ptr, AODVC_RREQ_IPV6_SIZE);
 	
 		/* Encapsulate the AODV packet in an IP datagram	*/
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rreq_pkptr = aodv_rte_ip_datagram_create (rreq_pkptr, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL, 
-			ttl_value, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL);
+			ttl_value, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL, AODVC_ROUTE_REQUEST);
 		
 		/* Install the ICI for IPv6 case */
 		ip_iciptr = op_ici_create ("ip_rte_req_v4");
@@ -2462,8 +2467,9 @@ aodv_rte_route_reply_send (AodvT_Rreq* rreq_option_ptr, IpT_Dgram_Fields* ip_dgr
 	manet_nexthop_info_ptr = (ManetT_Nexthop_Info *) op_prg_mem_alloc (sizeof (ManetT_Nexthop_Info));
 	
 	/* Encapsulate the AODV packet in an IP datagram	*/
+	// MHAVH - 03/16/09 - add info about type of control packet
 	ip_rrep_pkptr = aodv_rte_ip_datagram_create (rrep_pkptr, rreq_option_ptr->src_addr, rreq_src_route_entry_ptr,
-		IPC_DEFAULT_TTL, ip_dgram_fd_ptr->src_addr, manet_nexthop_info_ptr);
+		IPC_DEFAULT_TTL, ip_dgram_fd_ptr->src_addr, manet_nexthop_info_ptr, AODVC_ROUTE_REPLY);
 	
 	/* Update the statistics for the routing traffic sent	*/
 	aodv_support_routing_traffic_sent_stats_update (local_stat_handle_ptr,
@@ -2533,8 +2539,9 @@ aodv_rte_grat_route_reply_send (AodvT_Rreq* rreq_option_ptr, AodvT_Route_Entry* 
 	manet_nexthop_info_ptr = (ManetT_Nexthop_Info *) op_prg_mem_alloc (sizeof (ManetT_Nexthop_Info));
 	
 	/* Encapsulate the AODV packet in an IP datagram	*/
+	// MHAVH - 03/16/09 - add info about type of control packet
 	ip_rrep_pkptr = aodv_rte_ip_datagram_create (rrep_pkptr, rreq_option_ptr->dest_addr, rreq_dest_route_entry_ptr,
-		IPC_DEFAULT_TTL, rreq_option_ptr->dest_addr, manet_nexthop_info_ptr);
+		IPC_DEFAULT_TTL, rreq_option_ptr->dest_addr, manet_nexthop_info_ptr, AODVC_ROUTE_REPLY);
 	
 	if (LTRACE_ACTIVE)
 		{
@@ -2621,13 +2628,15 @@ aodv_rte_ext_route_error_send (InetT_Address unreachable_node_addr, int dest_seq
 	/* broadcast the route error message.	*/
 	if (aodv_addressing_mode == InetC_Addr_Family_v4)
 		{
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rerr_pkptr = aodv_rte_ip_datagram_create (rerr_pkptr, InetI_Broadcast_v4_Addr, OPC_NIL, 1,
-														InetI_Broadcast_v4_Addr, OPC_NIL);
+														InetI_Broadcast_v4_Addr, OPC_NIL, AODVC_ROUTE_ERROR);
 		}
 	else
 		{
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rerr_pkptr = aodv_rte_ip_datagram_create (rerr_pkptr, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL,
-														1, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL);
+														1, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL, AODVC_ROUTE_ERROR);
 	
 		/* Install the ICI for IPv6 case */
 		ip_iciptr = op_ici_create ("ip_rte_req_v4");
@@ -2983,13 +2992,15 @@ aodv_rte_route_error_process (InetT_Address unreachable_node_addr, AodvT_Route_E
 		/* Broadcast the route error message*/
 		if (aodv_addressing_mode == InetC_Addr_Family_v4)
 			{
+			// MHAVH - 03/16/09 - add info about type of control packet
 			ip_rerr_pkptr = aodv_rte_ip_datagram_create (rerr_pkptr, InetI_Broadcast_v4_Addr, OPC_NIL, 1,
-															InetI_Broadcast_v4_Addr, OPC_NIL);
+															InetI_Broadcast_v4_Addr, OPC_NIL, AODVC_ROUTE_ERROR);
 			}
 		else
 			{
+			// MHAVH - 03/16/09 - add info about type of control packet
 			ip_rerr_pkptr = aodv_rte_ip_datagram_create (rerr_pkptr, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL,
-														1, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL);
+														1, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL, AODVC_ROUTE_ERROR);
 		
 			/* Install the ICI for IPv6 case */
 			ip_iciptr = op_ici_create ("ip_rte_req_v4");
@@ -3013,9 +3024,10 @@ aodv_rte_route_error_process (InetT_Address unreachable_node_addr, AodvT_Route_E
 		/* Allocate memory for manet_nexthop_info_ptr 	*/
 		manet_nexthop_info_ptr = (ManetT_Nexthop_Info *) op_prg_mem_alloc (sizeof (ManetT_Nexthop_Info));
 	
+		// MHAVH - 03/16/09 - add info about type of control packet
 		ip_rerr_pkptr = aodv_rte_ip_datagram_create (rerr_pkptr, unique_precursor_addr, 
 													 aodv_route_table_entry_get (route_table_ptr, unique_precursor_addr), 
-													 1, unique_precursor_addr, manet_nexthop_info_ptr);
+													 1, unique_precursor_addr, manet_nexthop_info_ptr, AODVC_ROUTE_ERROR);
 		
 		if (LTRACE_ACTIVE)
 			{
@@ -3192,7 +3204,7 @@ aodv_rte_rrep_hello_message_send (void)
 			/* Encapsulate the AODV packet in an IP datagram	*/
 			// MHAVH - 03/16/09 - pass what type of control packet
 			ip_rrep_pkptr = aodv_rte_ip_datagram_create (rrep_pkptr, InetI_Broadcast_v4_Addr, OPC_NIL, 1, 
-															InetI_Broadcast_v4_Addr, OPC_NIL); // AODVC_HELLO
+															InetI_Broadcast_v4_Addr, OPC_NIL, AODVC_HELLO); 
  			}
 		else
 			{
@@ -3202,7 +3214,7 @@ aodv_rte_rrep_hello_message_send (void)
 			/* Encapsulate the AODV packet in an IP datagram	*/
 			// MHAVH - 03/16/09 - pass what type of control packet
 			ip_rrep_pkptr = aodv_rte_ip_datagram_create (rrep_pkptr, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL,
-															1,InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL); // AODVC_HELLO
+															1, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL, AODVC_HELLO); 
 			
 			/* Install the ICI for IPv6 case */
 			ip_iciptr = op_ici_create ("ip_rte_req_v4");
@@ -3221,7 +3233,7 @@ aodv_rte_rrep_hello_message_send (void)
 		op_ici_install (OPC_NIL);	
 		}
 		
-	/* Schedule the next check to send hello messages	*/
+	/* Schedule the next check to send hello messages	*/ 
 	op_intrpt_schedule_self (op_sim_time () + hello_interval, AODVC_HELLO_TIMER_EXPIRY);
 		
 	FOUT;
@@ -3691,7 +3703,7 @@ aodv_rte_neighbor_conn_loss_handle (void* neighbor_conn_info_ptr1, int PRG_ARG_U
 
 static Packet*
 aodv_rte_ip_datagram_create (Packet* aodv_pkptr, InetT_Address dest_addr, AodvT_Route_Entry* route_entry_ptr,
-	int ttl_value, InetT_Address next_hop_address, ManetT_Nexthop_Info* nexthop_info_ptr)
+	int ttl_value, InetT_Address next_hop_address, ManetT_Nexthop_Info* nexthop_info_ptr, int type)
 	{
 	Packet*					ip_pkptr = OPC_NIL;
 	IpT_Dgram_Fields*		ip_dgram_fd_ptr = OPC_NIL;
@@ -3700,9 +3712,6 @@ aodv_rte_ip_datagram_create (Packet* aodv_pkptr, InetT_Address dest_addr, AodvT_
 	IpT_Interface_Info*		iface_info_ptr = OPC_NIL;
 	short					output_intf_index;
 	IpT_Port_Info			output_port_info;
-	
-	// MHAVH - 03/16/09 - get the options from aodv_pkptr
-	AodvT_Packet_Option*			tlv_options_ptr;
 		
 	/** Creates an IP datagram and encapsulates	**/
 	/** the input packet in the data field		**/
@@ -3720,30 +3729,28 @@ aodv_rte_ip_datagram_create (Packet* aodv_pkptr, InetT_Address dest_addr, AodvT_
 	/* Set the AODV packet in the data field of the IP datagram	*/
 	op_pk_nfd_set_pkt (ip_pkptr, "data", aodv_pkptr);
 	
-	/* MHAVH - 03/16/09 - Get the option in the AODV packet	*/
-	op_pk_nfd_access (aodv_pkptr, "Options", &tlv_options_ptr);
 	
 	/* This is an AODV signaling packet. Based on the	*/
 	/* type of option set in the packet, increment its size		*/
-//	switch (tlv_options_ptr->type)
-//		{
-//		case (AODVC_ROUTE_REQUEST):
-//			{
+	switch (type)
+		{
+		case (AODVC_ROUTE_REQUEST):
+			{
 			/* This is a route request packet	*/
 			/* increment size by 96 bits */
-//			aodv_pkt_size += 96;
+			aodv_pkt_size += 96;
 //			printf("aodv_pkt_size: %d\n", aodv_pkt_size);
-//			break;
-//			}
+			break;
+			}
 			
-//		case (AODVC_ROUTE_REPLY):
-//			{
+		case (AODVC_ROUTE_REPLY):
+			{
 			/* This is a route reply option	*/
 			/* increment size by 48 bits */
-//			aodv_pkt_size += 48;
-//			break;
-//			}
-//		}
+			aodv_pkt_size += 48;
+			break;
+			}
+		}
 	// END MHAVH - 03/16/09
 
 	/* Set the bulk size of the IP packet to model the space	*/
