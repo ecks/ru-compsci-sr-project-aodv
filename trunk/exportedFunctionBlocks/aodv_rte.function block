@@ -145,7 +145,7 @@ aodv_rte_attributes_parse_buffers_create (void)
 	op_ima_obj_attr_get (aodv_parms_child_id, "Addressing Mode", &addressing_mode);
 	
 	/* MHAVH 22/12/08 - read in whether geo routing is set, and if it is, what type of algorithm to use */
-	op_ima_obj_attr_get (aodv_parms_child_id, "Geo Routing", &geo_routing);
+	op_ima_obj_attr_get (aodv_parms_child_id, "Position-Based Routing", &geo_routing);
 	
 	/* Read in the TTL parameters	*/
 	op_ima_obj_attr_get (aodv_parms_child_id, "TTL Parameters", &ttl_parms_id);
@@ -3190,17 +3190,19 @@ aodv_rte_rrep_hello_message_send (void)
 			rrep_pkptr = aodv_pkt_support_pkt_create (rrep_option_ptr, AODVC_RREP_IPV4_SIZE);
 	
 			/* Encapsulate the AODV packet in an IP datagram	*/
+			// MHAVH - 03/16/09 - pass what type of control packet
 			ip_rrep_pkptr = aodv_rte_ip_datagram_create (rrep_pkptr, InetI_Broadcast_v4_Addr, OPC_NIL, 1, 
-															InetI_Broadcast_v4_Addr, OPC_NIL);
-			}
+															InetI_Broadcast_v4_Addr, OPC_NIL); // AODVC_HELLO
+ 			}
 		else
 			{
 			/* Create the RREP hello v6 packet	*/
 			rrep_pkptr = aodv_pkt_support_pkt_create (rrep_option_ptr, AODVC_RREP_IPV6_SIZE);
 	
 			/* Encapsulate the AODV packet in an IP datagram	*/
+			// MHAVH - 03/16/09 - pass what type of control packet
 			ip_rrep_pkptr = aodv_rte_ip_datagram_create (rrep_pkptr, InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL,
-															1,InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL);
+															1,InetI_Ipv6_All_Nodes_LL_Mcast_Addr, OPC_NIL); // AODVC_HELLO
 			
 			/* Install the ICI for IPv6 case */
 			ip_iciptr = op_ici_create ("ip_rte_req_v4");
@@ -3698,6 +3700,9 @@ aodv_rte_ip_datagram_create (Packet* aodv_pkptr, InetT_Address dest_addr, AodvT_
 	IpT_Interface_Info*		iface_info_ptr = OPC_NIL;
 	short					output_intf_index;
 	IpT_Port_Info			output_port_info;
+	
+	// MHAVH - 03/16/09 - get the options from aodv_pkptr
+	AodvT_Packet_Option*			tlv_options_ptr;
 		
 	/** Creates an IP datagram and encapsulates	**/
 	/** the input packet in the data field		**/
@@ -3715,6 +3720,32 @@ aodv_rte_ip_datagram_create (Packet* aodv_pkptr, InetT_Address dest_addr, AodvT_
 	/* Set the AODV packet in the data field of the IP datagram	*/
 	op_pk_nfd_set_pkt (ip_pkptr, "data", aodv_pkptr);
 	
+	/* MHAVH - 03/16/09 - Get the option in the AODV packet	*/
+	op_pk_nfd_access (aodv_pkptr, "Options", &tlv_options_ptr);
+	
+	/* This is an AODV signaling packet. Based on the	*/
+	/* type of option set in the packet, increment its size		*/
+//	switch (tlv_options_ptr->type)
+//		{
+//		case (AODVC_ROUTE_REQUEST):
+//			{
+			/* This is a route request packet	*/
+			/* increment size by 96 bits */
+//			aodv_pkt_size += 96;
+//			printf("aodv_pkt_size: %d\n", aodv_pkt_size);
+//			break;
+//			}
+			
+//		case (AODVC_ROUTE_REPLY):
+//			{
+			/* This is a route reply option	*/
+			/* increment size by 48 bits */
+//			aodv_pkt_size += 48;
+//			break;
+//			}
+//		}
+	// END MHAVH - 03/16/09
+
 	/* Set the bulk size of the IP packet to model the space	*/
 	/* occupied by the encapsulated data. 						*/
 	op_pk_bulk_size_set (ip_pkptr, aodv_pkt_size);
