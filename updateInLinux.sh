@@ -2,6 +2,7 @@
 
 OP_PATH=/14.5.A/models/std/
 MANET_PATH=$OP_PATH/manet
+IP_PATH=$OP_PATH/ip
 INCLUDE_PATH=$OP_PATH/include
 
 echo "updating the repository..."
@@ -9,6 +10,7 @@ svn update
 
 echo "copying necessary files..."
 cp OPNET/$MANET_PATH/* $MANET_PATH
+cp OPNET/$IP_PATH/* $IP_PATH
 cp OPNET/$INCLUDE_PATH/* $INCLUDE_PATH
 
 echo "making temporary tmp folder under tmp..."
