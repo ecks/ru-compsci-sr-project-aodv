@@ -60,6 +60,12 @@ extern "C" {
 #define BROADCAST_REQUEST_LEVEL         3
 // MHAVH
 
+// MHAVH 03/18/09 - types of possible aodv options
+#define AODV_OPTION_NONE				0
+#define AODV_OPTION_ANGLE				1
+#define AODV_OPTION_DISTANCE			2
+#define AODV_OPTION_ANGLE_HELLO			3
+
 
 /******** Enumenated Data Types *********/
 
@@ -266,6 +272,7 @@ typedef struct
 	double				dst_x;
 	double 				dst_y;
 	double				insert_time;
+	int                 type; // MHAVH - 03/17/09
 	} AodvT_Geo_Entry;
 // MHAVH 10/25/08
 
