@@ -877,7 +877,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
 			}
 		
-		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y, tlv_options_ptr->type);
+		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
 		// MHAVH 18/11/08 - debugging messages to see if the destination is added with the same entry as the source
 		if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->dest_addr))
 			{
@@ -950,7 +950,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
 			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
 			}	
-		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y, tlv_options_ptr->type);
+		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
 		// MHAVH
 		
 		/* Set the valid sequence number field to true	*/
@@ -1493,7 +1493,7 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		if((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
 			{
 			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, tlv_options_ptr->type);
+								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 			}
 		
 		// MHAVH
@@ -1577,7 +1577,7 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 				{
 				// insert the new entry into the geo table
 				aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-						rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, tlv_options_ptr->type);
+						rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 				}
 			
 			// MHAVH
@@ -2029,7 +2029,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 				printf("Time when the entry was added: %f\n", geo_entry_ptr->insert_time);
 				aodv_geo_table_entry_delete(geo_table_ptr, geo_entry_addr);
 				}
-			aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y, tlv_options_ptr->type);
+			aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y);
 			}
 		// MHAVH
 		
@@ -2109,7 +2109,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 															op_sim_time());
 					aodv_geo_table_entry_delete(geo_table_ptr, geo_entry_addr);
 					}
-				aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y, tlv_options_ptr->type);
+				aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y);
 			}
 			// MHAVH
 			
@@ -2155,7 +2155,7 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 			{
 		    // MHAVH - 03/17/09 - update geo table with coordinates of the neighbor
 	        aodv_geo_table_insert(geo_table_ptr, prev_hop_addr,((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_x,
-								((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_y, tlv_options_ptr->type);
+								((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_y);
 			}
 		}
 	
@@ -2184,11 +2184,14 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	double src_y;
 	AodvT_Geo_Entry* geo_entry_ptr;
 	
-	// MHAVH - 03/17/09 - list of all the entries in our geo table
-	PrgT_List* geo_entry_list_ptr;
+	// MHAVH - 03/17/09 - list of all the neighbors
+	PrgT_List* neighbor_list;
+	AodvT_Conn_Info* neighbor;
 	Boolean neighbor_in_request_level = OPC_FALSE;
-	AodvT_Geo_Entry* geo_entry_ptr_ptntl_neighbor;
+	AodvT_Geo_Entry* geo_neighbor;
 	double angle;
+	int i;
+	int list_size;
 	// MHAVH
 		
 	/** Broadcasts a route request message	**/
@@ -2229,18 +2232,19 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 		
 		if(geo_routing == AODV_OPTION_ANGLE_HELLO)
 			{
-		    // MHAVH - 03/17/09 - must check whether there are any neighbors located within the initial request angle
-		    geo_entry_list_ptr = aodv_geo_table_list_entries_get(geo_table_ptr, inet_address_family_get(&dest_addr)); 
-		    while((neighbor_in_request_level == OPC_FALSE) && (request_level != BROADCAST_REQUEST_LEVEL))
+			neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
+			while((neighbor_in_request_level == OPC_FALSE) && (request_level != BROADCAST_REQUEST_LEVEL))
 				{
-				for(int i = 0; i < prg_list_size(geo_entry_list_ptr); i++)
+				list_size = prg_list_size(neighbor_list);
+				for(i = 0; i < list_size; i++)
 					{
-					geo_entry_ptr_ptntl_neighbor = (AodvT_Geo_Entry*) prg_list_access(geo_entry_list_ptr, i);
-					if(geo_entry_ptr_ptntl_neighbor->type == AODVC_HELLO)
+				    neighbor = prg_list_access(neighbor_list, i);
+					geo_neighbor = aodv_geo_table_entry_get(geo_table_ptr, neighbor->neighbor_address, OPC_FALSE);
+					if(geo_neighbor != OPC_NIL)
 						{
-						angle = aodv_rte_rreq_calculate_angle(src_x, src_y, geo_entry_ptr_ptntl_neighbor->dst_x, 
-									geo_entry_ptr_ptntl_neighbor->dst_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y);
-						if(aodv_rte_rreq_within_area(angle, request_level));
+							angle = aodv_rte_rreq_calculate_angle(src_x, src_y, geo_neighbor->dst_x, 
+									geo_neighbor->dst_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y);
+							if(aodv_rte_rreq_within_area(angle, request_level));
 							{
 							// debugging messages inside function
 							rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
@@ -2254,11 +2258,22 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 							break;      // we have found a decent entry, no need to recreate the rreq option if we find a second entry
 							}
 						}
+					
 					}
-				if(neighbor_in_request_level == OPC_FALSE)
+					if(neighbor_in_request_level == OPC_FALSE)
 					{
 					request_level++;
 					}
+				}
+			if(request_level == BROADCAST_REQUEST_LEVEL)
+				{
+					rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
+						   		grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
+								route_request_id, dest_addr, 
+								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
+								src_x, src_y,
+								geo_entry_ptr->dst_x, geo_entry_ptr->dst_y,
+								request_level);	
 				}
 
 			}

@@ -61,7 +61,7 @@ aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_ad
 
 void
 aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, 
-										double dst_x, double dst_y, int type)
+										double dst_x, double dst_y)
 	{
 	AodvT_Geo_Entry*			geo_entry_ptr;
 	char						addr_str [INETC_ADDR_STR_LEN];
@@ -88,7 +88,6 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 		geo_entry_ptr->insert_time = op_sim_time ();
 		geo_entry_ptr->dst_x = dst_x;
 		geo_entry_ptr->dst_y = dst_y;
-		geo_entry_ptr->type = type; // MHAVH 03/17/09
 		
 		/* Insert this new request into the request table	*/
 		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d\n", addr_str, (int) &dst_address);
@@ -132,17 +131,6 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 	printf("^^^^^^^^^^^^^^^^OBTAINED Dest %s \n", addr_str);
 	FRET (geo_entry_ptr);
 	}
-
-PrgT_List* 
-aodv_geo_table_list_entries_get(AodvT_Geo_Table* geo_table_ptr, InetT_Addr_Family key_addr_family)
-	{
-	PrgT_List* list;
-	
-	FIN (aodv_geo_table_list_entries_get (<args>));
-	list = inet_addr_hash_table_item_list_get(geo_table_ptr->geo_table, key_addr_family);
-	FRET (inet_addr_hash_table_item_list_get(geo_table_ptr->geo_table, key_addr_family));
-	}
-
 
 Compcode
 aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
