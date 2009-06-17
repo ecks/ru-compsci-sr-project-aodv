@@ -1,5 +1,0 @@
-#summary The following section deals with related work of our research.
-
-= Related Work =
-
-There have been many implementation of Geo-Routing, the most notable being Location Aided Routing (LAR). 
