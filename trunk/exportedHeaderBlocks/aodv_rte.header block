@@ -12,6 +12,8 @@
 #include <aodv_ptypes.h>
 #include <oms_pr.h>
 #include <math.h>
+#include <aodv_geo_support.h>
+#include <aodv_geo_table.h>
 
 
 #define PACKET_ARRIVAL  		(invoke_mode == OPC_PROINV_INDIRECT)
@@ -44,9 +46,10 @@ static void						aodv_rte_data_routes_expiry_time_update (Packet* dgram_pkptr);
 static void						aodv_rte_route_table_entry_update (IpT_Dgram_Fields*, IpT_Rte_Ind_Ici_Fields*, 
 														AodvT_Packet_Option*);
 static void						aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields*, AodvT_Packet_Option*);
+
 // MHAVH 13/11/08 - add an extra parameter, the request level
 static void						aodv_rte_route_request_send (AodvT_Route_Entry*, InetT_Address, int, double, int, int);
-// END MHAVH
+
 static void						aodv_rte_route_reply_send (AodvT_Rreq*, IpT_Dgram_Fields*, Boolean, AodvT_Route_Entry*, AodvT_Route_Entry*);
 static void						aodv_rte_grat_route_reply_send (AodvT_Rreq*, AodvT_Route_Entry*, AodvT_Route_Entry*);
 static void						aodv_rte_route_error_process (InetT_Address, AodvT_Route_Entry*, List*, AodvC_Rerr_Process, Boolean);
@@ -55,8 +58,10 @@ static void						aodv_rte_rrep_hello_message_send (void);
 static Compcode					aodv_rte_local_repair_attempt (InetT_Address, AodvT_Route_Entry*);
 static Boolean					aodv_rte_local_repair_exists (InetT_Address, Boolean);
 static void						aodv_rte_neighbor_connectivity_table_update (InetT_Address, Boolean);
+
 // MHAVH - 03/16/09 - include parameter for type of control packet
 static Packet*					aodv_rte_ip_datagram_create (Packet*, InetT_Address, AodvT_Route_Entry*, int, InetT_Address, ManetT_Nexthop_Info*, int);
+
 static double					aodv_rte_max_find (double, double);
 static void						aodv_rte_error (const char*, const char*, const char*);
 
@@ -65,16 +70,11 @@ extern void						aodv_rte_rreq_timer_expiry_handle (void*, int);
 extern void						aodv_rte_entry_expiry_handle(void*, int);
 extern void						aodv_rte_forward_request_delete (void* addr_str, int req_id);	
 
-// MHAVH 11/11/08  - function to check whether a node is within a given area when sending rreq
-static double					aodv_rte_rreq_calculate_angle(double, double, double, double, double, double);
-static Boolean					aodv_rte_rreq_within_area(double, int);
-// MHAVH 12/26/08 - function to check whether a node is within a given distance when sending rreq
-static Boolean					aodv_rte_rreq_within_distance(double, double, double, double, double, double);
-// MHAVH
 
+// AODV Supporting functions
+static void						aodv_rte_geo_init();
 
 
 EXTERN_C_BEGIN
 static void						aodv_rte_neighbor_conn_loss_handle (void*, int);
 EXTERN_C_END
-	
