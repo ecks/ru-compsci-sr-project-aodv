@@ -1,17 +1,188 @@
-#include <aodv_geo_support.h>
+//#include <aodv_geo_support.h>
+#include <opnet.h>
+#include <aodv.h>
+#include <aodv_ptypes.h>
+#include <math.h>
+
+const double PI = 3.141592653589793238462643383279502884197169399375;
+const double MAX_ANGLE = 360;
+
+			   
+// Purpose:	 Compute the length of the vector
+// IN:	    	 start_x, start_y -- starting point of the vector
+//			 	end_x, end_y	-- ending point of the vector
+// OUT:		 length of the vector
+double
+aodv_geo_vector_length(double start_x, double start_y,
+						double end_x,   double end_y)
+{
+	double x, y;
+
+	FIN (aodv_geo_vector_length( <args> ));
+	
+	x = end_x - start_x;
+	y = end_y - start_y;
+	
+	FRET (sqrt(pow(x,2.0) + pow(y, 2.0)));
+}
+
+// MHAVH 11/11/08 -  THIS function is NOT needed yet!!!
+// Purpose: 	determine if the current node is within the search area
+//				
+// Algorithm:	compute the angle between if the angle is smaller than the request level,
+// we can forward the packet, otherwise drop it
+// IN:			angle			-- angle in degrees formed by the 3 nodes (source, current, detination or previous, current, destination)
+//				request_level	-- request angle in multiples of 90
+Boolean
+aodv_rte_rreq_within_area(double computed_angle, int request_level)
+{	
+    FIN (aodv_rte_rreq_within_area( <args> ));
+
+	// Flooding angle starts from 0 and goes to 3
+	// flooding angle = (request_level +1) *90
+
+	// the flooding angle is being computed as the request level multiplied 
+	// by 45 and not 90  degrees because the computed angle could be located
+	// on either side of the line that equally divides floodingn angle
+	if(computed_angle <= (request_level+1) * 45.0)
+		{
+	    FRET(OPC_TRUE);
+		}
+
+	FRET(OPC_FALSE);
+
+}
+
+// MHAVH 11/11/08 
+// Purpose:   	Compute the angle SME formed by three points: start (S), middle (M), end (E)
+// In:			start_x, start_y -- position of starting point S
+//				mid_x, mid_y	 -- position of the middle point M
+//				end_x, end_y	 -- position of ending point E	
+// Out:			a value of the angle formed by the points S, M, E in units of degrees 
+
+double aodv_geo_compute_angle(double start_x, double start_y, 
+							  double mid_x, double mid_y, 
+							  double end_x, double end_y)
+{
+	double vector_SE_x;
+	double vector_SE_y;
+	
+	double vector_SM_x;
+	double vector_SM_y;
+			
+	double angle_form_numer;
+	double angle_form_denom;
+	
+	
+	double angle;
+	
+		
+	FIN (aodv_geo_compute_angle( <args> ));
+	
+	vector_SE_x = end_x - start_x;
+	vector_SE_y = end_y - start_y;
+	
+	vector_SM_x = mid_x - start_x;
+	vector_SM_y = mid_y - start_y;
+	
+		
+	angle_form_numer = (vector_SE_x * vector_SM_x) + (vector_SE_y * vector_SM_y);
+	angle_form_denom = aodv_geo_vector_length(start_x, start_y, end_x, end_y) *  
+		               aodv_geo_vector_length(start_x, start_y, mid_x, mid_y);	
+	
+	angle = acos(angle_form_numer/angle_form_denom) * (180/PI);
+	
+	
+	// Debugging messages
+	printf("angle_form_numer -> %.f, angle_form_denom -> %.f\n", angle_form_numer,	angle_form_denom);
+	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", angle);
+	
+	
+
+    FRET(angle);	
+
+}
 
 
-// Purpose:	Given positions of the nodes, flooding angle, and aodv type
-//				determine if the current node should rebroadcast RREQ or not
-// IN:			orig_x, orig_y -- position of the node that originated the RREQ
-//				prev_x, prev_y -- position of the node where the RREQ was received from
-//				curr_x, curr_y -- position of the node that received the RREQ
-//				dest_x, dest_y -- position of the destination node
-//				flooding_angle -- acceptable angle to forward the RREQ
-//				aodv_type	   -- type of aodv being used
-// Out:		TRUE if the current node should rebroadcase the RREQ
-//				FALSE if the RREQ should be destroyed
-static Boolean aodv_geo_rebroadcast(
+
+// Purpose:		find neighbors in current flooding angle
+// IN:			neighbor_list	-- list of neighbors
+//				request_level	-- request angle in multiples of 90
+//				geo_entry_ptr	-- not sure if needed!!
+// OUT:			TRUE: neighbor is found within flooding angle
+//				FALSE: no neighbors found
+Boolean aodv_geo_find_neighbor(	AodvT_Geo_Table* geo_table_ptr,
+								PrgT_List* 	     neighbor_list,	// list of neighbors
+								int 		     request_level,	// request level/flooding angle
+								double	src_x,   double src_y,
+								double dest_x,   double dest_y)
+{
+	double 				angle;
+	AodvT_Geo_Entry* 	geo_neighbor;
+	AodvT_Conn_Info* 	neighbor;
+	int					i, size;
+
+	FIN(aodv_geo_find_neighbor(<args>));
+	
+	size = prg_list_size(neighbor_list);
+
+	// go through the lilst of neighbors
+	for(i = 0; i < size; i++)
+	{
+		// get  neighbor
+		neighbor = prg_list_access(neighbor_list, i);
+		
+		// get neighbour GeoTable entry
+		geo_neighbor = aodv_geo_table_entry_get(geo_table_ptr, neighbor->neighbor_address, OPC_FALSE);
+		
+		// If neighbour exists then check if it is in the area defined  by the flooding anglee
+		if(geo_neighbor != OPC_NIL)
+		{
+			// compute the angle formed by destination, previous node, and neighbor node
+			angle = aodv_geo_compute_angle(	dest_x, dest_y, src_x, src_y,
+											geo_neighbor->dst_x, geo_neighbor->dst_y);
+			
+			// Check if is within the area defined by the flooding angle/request level
+			if(aodv_rte_rreq_within_area(angle, request_level));
+			{
+				FRET(OPC_TRUE);
+			}
+		}
+	}
+
+	FRET(OPC_FALSE);
+
+}
+
+// Purpose:	 Determine if the lenght of the vector formed by start-end  points(vector SE) is
+//			 	 greater than the length of the vector formed by middle-end points(vector ME)
+// IN:			 start_x, start_y	-- position of node where the RREQ was received
+//				 mid_x, mid_y		-- position of node that received the RREQ
+//				 end_x, end_y		-- position of the destination node
+// OUT:		 True if length(SE) >= length (ME)
+//			 	 False, otherwise
+Boolean
+aodv_geo_LAR_distance(double start_x, double start_y,
+				  double mid_x,   double mid_y, 
+				  double end_x,   double end_y)
+{
+		
+	FIN (aodv_rte_rreq_within_distance( <args> ));
+	
+	
+	if (aodv_geo_vector_length(start_x, start_y, end_x, end_y) <= 
+		aodv_geo_vector_length(mid_x, mid_y, end_x, end_y))
+	{
+		FRET(OPC_TRUE);
+	}
+	
+	FRET(OPC_FALSE);
+}
+
+
+
+
+Boolean aodv_geo_rebroadcast(
 						double orig_x, double orig_y,		// Coordinates of the node that originated RREQ
 						double prev_x, double prev_y,		// Coordinates of the node that send RREQ
 						double curr_x, double curr_y, 		// Coordinates of the node that received RREQ
@@ -139,6 +310,18 @@ static Boolean aodv_geo_rebroadcast(
 	FRET (OPC_TRUE);
 }
 
+
+// Purpose:	Given positions of the nodes, flooding angle, and aodv type
+//				determine if the current node should rebroadcast RREQ or not
+// IN:			orig_x, orig_y -- position of the node that originated the RREQ
+//				prev_x, prev_y -- position of the node where the RREQ was received from
+//				curr_x, curr_y -- position of the node that received the RREQ
+//				dest_x, dest_y -- position of the destination node
+//				flooding_angle -- acceptable angle to forward the RREQ
+//				aodv_type	   -- type of aodv being used
+// Out:		TRUE if the current node should rebroadcase the RREQ
+//				FALSE if the RREQ should be destroyed
+
 // Purpose:	Decide to change the flooding angle based on geo table information of
 //				neighboring nodes
 // IN:			orig_x, orig_y -- position of the node that originated the RREQ
@@ -148,16 +331,16 @@ static Boolean aodv_geo_rebroadcast(
 //				flooding_angle -- acceptable angle to forward the RREQ
 //				aodv_type	   -- type of aodv being used
 // Out:			return RREQ
-static int aodv_geo_compute_expand_flooding_angle( 
+int aodv_geo_compute_expand_flooding_angle( 
 			InetT_Address_Hash_Table_Handle 	neighbor_connectivity_table, 	
 			InetT_Address 						dest_addr, 
-			int									src_x,
-			int									src_y,
+			double								src_x,
+			double								src_y,
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
-			int									dst_x, //&dst_x
-			int									dst_y)	//&dst_y		
+			double*								dst_x, //&dst_x
+			double* 							dst_y)	//&dst_y		
 {
 	PrgT_List* 			neighbor_list;
 	AodvT_Geo_Entry* 	geo_entry_ptr;
@@ -166,8 +349,8 @@ static int aodv_geo_compute_expand_flooding_angle(
 
 
 	// default destination coordinates 
-	dst_x = DEFAULT_X;
-	dst_y = DEFAULT_Y;
+	*dst_x = DEFAULT_X;
+	*dst_y = DEFAULT_Y;
 	
 	switch(aodv_type)
 		{
@@ -204,8 +387,8 @@ static int aodv_geo_compute_expand_flooding_angle(
 				}
 				
 				// Set destination coordinates
-				dst_x = geo_entry_ptr->dst_x;
-				dst_y = geo_entry_ptr->dst_y;
+				*dst_x = geo_entry_ptr->dst_x;
+				*dst_y = geo_entry_ptr->dst_y;
 			}
 			break;
 		
@@ -226,175 +409,3 @@ static int aodv_geo_compute_expand_flooding_angle(
 	FRET(BROADCAST_REQUEST_LEVEL);
 
 }
-
-
-// Purpose:		find neighbors in current flooding angle
-// IN:			neighbor_list	-- list of neighbors
-//				request_level	-- request angle in multiples of 90
-//				geo_entry_ptr	-- not sure if needed!!
-// OUT:			TRUE: neighbor is found within flooding angle
-//				FALSE: no neighbors found
-static Boolean aodv_geo_find_neighbor(	AodvT_Geo_Table* geo_table_ptr,
-										PrgT_List* 	     neighbor_list,	// list of neighbors
-										int 		     request_level,	// request level/flooding angle
-										int	src_x,       int src_y,
-										int dest_x,      int dest_y)
-{
-	double 				angle;
-	AodvT_Geo_Entry* 	geo_neighbor;
-	AodvT_Conn_Info* 	neighbor;
-	int					i, size;
-
-	FIN(aodv_geo_find_neighbor(<args>));
-	
-	size = prg_list_size(neighbor_list);
-
-	// go through the lilst of neighbors
-	for(i = 0; i < size; i++)
-	{
-		// get  neighbor
-		neighbor = prg_list_access(neighbor_list, i);
-		
-		// get neighbour GeoTable entry
-		geo_neighbor = aodv_geo_table_entry_get(geo_table_ptr, neighbor->neighbor_address, OPC_FALSE);
-		
-		// If neighbour exists then check if it is in the area defined  by the flooding anglee
-		if(geo_neighbor != OPC_NIL)
-		{
-			// compute the angle formed by destination, previous node, and neighbor node
-			angle = aodv_geo_compute_angle(	dest_x, dest_y, src_x, src_y,
-											geo_neighbor->dst_x, geo_neighbor->dst_y);
-			
-			// Check if is within the area defined by the flooding angle/request level
-			if(aodv_rte_rreq_within_area(angle, request_level));
-			{
-				FRET(OPC_TRUE);
-			}
-		}
-	}
-
-	FRET(OPC_FALSE);
-
-}
-
-// MHAVH 11/11/08 -  THIS function is NOT needed yet!!!
-// Purpose: 	determine if the current node is within the search area
-//				
-// Algorithm:	compute the angle between if the angle is smaller than the request level,
-// we can forward the packet, otherwise drop it
-// IN:			angle			-- angle in degrees formed by the 3 nodes (source, current, detination or previous, current, destination)
-//				request_level	-- request angle in multiples of 90
-static Boolean
-aodv_rte_rreq_within_area(double computed_angle, int request_level)
-{	
-    FIN (aodv_rte_rreq_within_area( <args> ));
-
-	// Flooding angle starts from 0 and goes to 3
-	// flooding angle = (request_level +1) *90
-
-	// the flooding angle is being computed as the request level multiplied 
-	// by 45 and not 90  degrees because the computed angle could be located
-	// on either side of the line that equally divides floodingn angle
-	if(computed_angle <= (request_level+1) * 45.0)
-		{
-	    FRET(OPC_TRUE);
-		}
-
-	FRET(OPC_FALSE);
-
-}
-
-// MHAVH 11/11/08 
-// Purpose:   	Compute the angle SME formed by three points: start (S), middle (M), end (E)
-// In:			start_x, start_y -- position of starting point S
-//				mid_x, mid_y	 -- position of the middle point M
-//				end_x, end_y	 -- position of ending point E	
-// Out:			a value of the angle formed by the points S, M, E in units of degrees 
-
-static double aodv_geo_compute_angle(double start_x, double start_y, 
-										double mid_x, double mid_y, 
-										double end_x, double end_y)
-{
-	double vector_SE_x;
-	double vector_SE_y;
-	
-	double vector_SM_x;
-	double vector_SM_y;
-			
-	double angle_form_numer;
-	double angle_form_denom;
-	
-	
-	double angle;
-	
-		
-	FIN (aodv_geo_compute_angle( <args> ));
-	
-	vector_SE_x = end_x - start_x;
-	vector_SE_y = end_y - start_y;
-	
-	vector_SM_x = mid_x - start_x;
-	vector_SM_y = mid_y - start_y;
-	
-		
-	angle_form_numer = (vector_SE_x * vector_SM_x) + (vector_SE_y * vector_SM_y);
-	angle_form_denom = aodv_geo_vector_length(start_x, start_y, end_x, end_y) *  
-		               aodv_geo_vector_length(start_x, start_y, mid_x, mid_y);	
-	
-	angle = acos(angle_form_numer/angle_form_denom) * (180/PI);
-	
-	
-	// Debugging messages
-	printf("angle_form_numer -> %.f, angle_form_denom -> %.f\n", angle_form_numer,	angle_form_denom);
-	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", angle);
-	
-	
-
-    FRET(angle);	
-
-	}
-
-// Purpose:	 Determine if the lenght of the vector formed by start-end  points(vector SE) is
-//			 	 greater than the length of the vector formed by middle-end points(vector ME)
-// IN:			 start_x, start_y	-- position of node where the RREQ was received
-//				 mid_x, mid_y		-- position of node that received the RREQ
-//				 end_x, end_y		-- position of the destination node
-// OUT:		 True if length(SE) >= length (ME)
-//			 	 False, otherwise
-static Boolean
-aodv_geo_LAR_distance(double start_x, double start_y,
-				  double mid_x,   double mid_y, 
-				  double end_x,   double end_y)
-{
-		
-	FIN (aodv_rte_rreq_within_distance( <args> ));
-	
-	
-	if (aodv_geo_vector_length(start_x, start_y, end_x, end_y) <= 
-		aodv_geo_vector_length(mid_x, mid_y, end_x, end_y))
-	{
-		FRET(OPC_TRUE);
-	}
-	
-	FRET(OPC_FALSE);
-}
-
-
-// Purpose:	 Compute the length of the vector
-// IN:	    	 start_x, start_y -- starting point of the vector
-//			 	end_x, end_y	-- ending point of the vector
-// OUT:		 length of the vector
-static double
-aodv_geo_vector_length(double start_x, double start_y,
-						double end_x,   double end_y)
-{
-	double x, y;
-
-	FIN (aodv_rte_rreq_within_distance( <args> ));
-	
-	x = end_x - start_x;
-	y = end_y - start_y;
-	
-	FRET (sqrt(pow(x,2.0) + pow(y, 2.0)));
-}
-
