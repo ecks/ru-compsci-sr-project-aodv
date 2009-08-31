@@ -144,9 +144,6 @@ aodv_rte_attributes_parse_buffers_create (void)
 	op_ima_obj_attr_get (aodv_parms_child_id, "Local Repair", &local_repair);
 	op_ima_obj_attr_get (aodv_parms_child_id, "Addressing Mode", &addressing_mode);
 	
-	/* MHAVH 22/12/08 - read in whether geo routing is set, and if it is, what type of algorithm to use */
-	op_ima_obj_attr_get (aodv_parms_child_id, "Position-Based Routing", &geo_routing);
-	
 	/* Read in the TTL parameters	*/
 	op_ima_obj_attr_get (aodv_parms_child_id, "TTL Parameters", &ttl_parms_id);
 	ttl_parms_child_id = op_topo_child (ttl_parms_id, OPC_OBJTYPE_GENERIC, 0);
@@ -186,9 +183,6 @@ aodv_rte_attributes_parse_buffers_create (void)
 	request_table_ptr = aodv_request_table_create (path_discovery_time, route_request_retries, aodv_addressing_mode);
 	pkt_queue_ptr     = aodv_packet_queue_create (pkt_queue_size, local_stat_handle_ptr, aodv_addressing_mode);
 	
-	// MHAVH 01/11/08 - initialize the geo table 
-	geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
-	// MHAVH
 	
 	/* Initialize the packet queue table for local repair	*/
 	if (local_repair)
@@ -202,7 +196,11 @@ aodv_rte_attributes_parse_buffers_create (void)
 		neighbor_connectivity_table = inet_addr_hash_table_create (16, 0);
 	else
 		neighbor_connectivity_table = inet_addr_hash_table_create (0, 16);
-		
+	
+	
+	// VHMR  init GEO_AODV, 8/03/09
+	aodv_rte_geo_init();
+	
 	FOUT;
 	}
 
@@ -655,18 +653,42 @@ aodv_rte_app_pkt_arrival_handle (Packet* ip_pkptr, IpT_Dgram_Fields* ip_dgram_fd
 			/* to the destination of the incoming data packet	*/
 			
 			// MHAVH 12/26/08 - if the user wants no geo routing, we broadcast every time
-			if(geo_routing != AODV_OPTION_NONE)
+			// HAVHMR 6/26/08
+			switch(geo_routing_type)
 				{
-				// MHAVH 13/11/08 - we send the initial route request with INITIAL_REQUEST_LEVEL
-				aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL);
+				case AODV_TYPE_LAR_DISTANCE:
+				case AODV_TYPE_LAR_ZONE:
+				case AODV_TYPE_GEO_STATIC:
+				case AODV_TYPE_GEO_EXPAND:
+				case AODV_TYPE_GEO_ROTATE:
+					
+					// Send an RREQ with new initial flooding angle value of 90 (request_level = 0)
+					aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, 
+												 ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL);
+					break;
+					
+				case AODV_TYPE_GEO_ROTATE_01:
+				
+					// Send an RREQ with new initial flooding angle value... 
+					// initial flooding angle is 180 (request_level = 1)
+					aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, 
+												 ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL+1);
+					break;
+		
+				case AODV_TYPE_REGULAR:
+					// REgular AODV, broadcast to everyone,
+					// flooding angle = 360, (request_level = 3 or BROADCAST_REQUEST_LEVEL)
+					aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, 
+												 ttl_value, ring_traversal_time, 0, BROADCAST_REQUEST_LEVEL);
+					break;
+		
+				default:
+					// something went very wrong
+					break;
 				}
-			else
-				{
-				aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, ttl_value, ring_traversal_time, 0, BROADCAST_REQUEST_LEVEL);				
-				}
-				// END MHAVH
-			}
-	
+			// END MHAVH -- HAVHMR
+
+		}
 		/* Queue the application packet in the packet queue	*/
 		/* until a route is found to the destination		*/
 		aodv_packet_queue_insert (pkt_queue_ptr, ip_pkptr, ip_dgram_fd_ptr->dest_addr);
@@ -709,10 +731,9 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	Objid						ppid;
 	AodvT_Geo_Entry*			geo_entry_ptr = OPC_NIL;
 	// 11/11/08 - added values of the current x and y positions
-	double 						curr_x;
-	double 						curr_y;
-	double 						angle; // angle between src, curr, and dst
-	
+	double 						curr_x, prev_x;
+	double 						curr_y, prev_y;
+
 	// MHAVH
 	
 	/** Handles the arrival of a route request message	**/
@@ -734,17 +755,26 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		rreq_option_ptr->src_addr = inet_address_copy (prev_hop_addr);
 		}
 	
-	// MHAVH 11/04/08 - debug
+	// MHAVH 11/04/08
+	// VHMR 08/03/09
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "name", &name);
-	printf("&&&RREQ Arrival with src_seq number [%d] and ttl [%d]\n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
-	printf("RREQ:(%.f, %.f), (%.f, %.f), %i, %f\n", 
-			rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
-			rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, rreq_option_ptr->request_level, op_sim_time());	
 	inet_address_print(tmp_ip_addr , rreq_option_ptr->src_addr);
-	printf("  * received with src_addr of %s by %s\n", tmp_ip_addr, name);
-	// MHAVH
+	
+	// DEBUG*********************
+	printf("  ************** RREQ from %s arrived at %s\n", tmp_ip_addr, name);
+	printf("  RREQ info:\n  Sequence # = %d] TTL = %d \n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
+	printf(" SRC(x,y) = (%.2f, %.2f), DEST(x,y)= (%.f, %.f), Flooding Anlgle = %i, Time = %f\n\n", 
+			rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, 
+			(rreq_option_ptr->request_level+1)*90, op_sim_time());	
+	
+	
+	// Update GeoTable with fresher originating node information
+	printf("  UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+	aodv_geo_table_update(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+	
+	// END VHMR 08/03/09 -- Future update: if RREQ carries fresh dest coordinates than update GeoTable
 	
 	
 	if ((op_prg_odb_ltrace_active ("trace_rreq") == OPC_TRUE)|| LTRACE_ACTIVE)
@@ -783,8 +813,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		manet_rte_ip_pkt_destroy (ip_pkptr);
 		op_pk_destroy (aodv_pkptr);
 		
-		// MHAVH 07/11/08 - debug
-		printf("Source received its own RREQ, destroying...\n\n");
+		// MHAVH 07/11/08 - DEBUG*********************
+		printf("OWN RREQ -- Discard!\n\n");
 		// END MHAVH
 		
 		FOUT;
@@ -807,8 +837,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		manet_rte_ip_pkt_destroy (ip_pkptr);
 		op_pk_destroy (aodv_pkptr);
 		
-		// MHAVH 07/11/08 - debug
-		printf("Source has seen a RREQ with same request ID and originator address, destroying...\n\n");
+		// MHAVH 07/11/08 - DEBUG*********************
+		printf("Duplicate RREQ -- Discard!\n\n");
 		// END MHAVH
 		
 		FOUT;
@@ -867,29 +897,6 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		/* request. Create a new route entry			*/
 		route_entry_ptr = aodv_route_table_entry_create (route_table_ptr, rreq_option_ptr->src_addr, selected_subnet_mask, prev_hop_addr, 
 														 in_port_info, rreq_option_ptr->hop_count, rreq_option_ptr->src_seq_num, min_lifetime);
-
-		
-		// MHAVH 11/04/08 - no previous route request received from this source, update the geo table
-		printf("  * there should be no geo entry for the source of the rreq\n");
-		if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->src_addr))
-			{
-			printf("!!!Assertion error: there is no route to the destination but there is a geo entry\n");
-			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
-			}
-		
-		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
-		// MHAVH 18/11/08 - debugging messages to see if the destination is added with the same entry as the source
-		if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->dest_addr))
-			{
-			printf("Destination exists as well as source\n");
-			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->src_addr, OPC_FALSE);
-			printf("SRC ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
-			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->dest_addr, OPC_FALSE);
-			printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
-			}
-			
-		   
-		// MHAVH
 		
 		/* Send all packets queued to this destination	*/
 		aodv_rte_all_pkts_to_dest_send (rreq_option_ptr->src_addr, route_entry_ptr, OPC_FALSE);
@@ -942,16 +949,6 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			aodv_route_table_entry_state_set (route_table_ptr, route_entry_ptr, rreq_option_ptr->src_addr, AodvC_Valid_Route);
 			}
 
-		// MHAVH 11/04/08 - there is a newer route request, update the geo table
-		printf("  * there should be a newer geo entry for the source of the rreq we currently have in the table\n");	
-        if(aodv_geo_table_entry_exists(geo_table_ptr, rreq_option_ptr->src_addr))
-			{
-			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->src_addr, OPC_FALSE);
-			printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
-			aodv_geo_table_entry_delete(geo_table_ptr, rreq_option_ptr->src_addr);
-			}	
-		aodv_geo_table_insert(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
-		// MHAVH
 		
 		/* Set the valid sequence number field to true	*/
 		route_entry_ptr->valid_dest_sequence_number_flag = OPC_TRUE;
@@ -989,6 +986,9 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		{
 		/* This is the destination of the RREQ	*/
 		/* Send a route reply message			*/
+		
+		// HAVHMR 7/20/09 -- the aodv_rte_route_reply_send have been modified to 
+		// create RREQ message that carrries GeoAODV information
 		aodv_rte_route_reply_send (rreq_option_ptr, ip_dgram_fd_ptr, OPC_TRUE, route_entry_ptr, OPC_NIL);
 		
 		/* Update the statistic for the number of route	*/
@@ -1246,49 +1246,49 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 		}
 	
 	// MHAVH 12/26/08 - first we need to get the position of the current node
+	// Determine if the current node should re-broadcast the RREQ
+	// 
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "x position", &curr_x);
 	op_ima_obj_attr_get (ppid, "y position", &curr_y);
 	
-	// MHAVH 11/11/08 - if a route request is not broadcast, calculate whether it is
-	// within the valid area
-	if(rreq_option_ptr->request_level != BROADCAST_REQUEST_LEVEL && geo_routing != AODV_OPTION_NONE)
-		{
-		angle = aodv_rte_rreq_calculate_angle(rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
-						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
-		printf(">>> NOT DONE WITH RREQ, our angle is %.5f\n", angle);
-		if(!aodv_rte_rreq_within_area(angle, rreq_option_ptr->request_level))
-			{
-            printf("Destroying RREQ packet, outside of valid range: (%.f, %.f), (%.f, %.f), (%.f, %.f), %i\n", 
-				rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
-						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, 
-											rreq_option_ptr->request_level);
-			op_pk_destroy (aodv_pkptr);
-		    manet_rte_ip_pkt_destroy (ip_pkptr);
-			FOUT;
-			}
-		}
-	// MHAVH 12/26/08 - geo routing based on a destination
-	else if(geo_routing == AODV_OPTION_DISTANCE)
-		{
-		if(!aodv_rte_rreq_within_distance(rreq_option_ptr->src_x, rreq_option_ptr->src_y,
-					curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y))
-			{
-            printf("Destroying RREQ packet, outside of valid range in distance: (%.f, %.f), (%.f, %.f), (%.f, %.f)\n", 
-				rreq_option_ptr->src_x, rreq_option_ptr->src_y, 
-						curr_x, curr_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
-			op_pk_destroy (aodv_pkptr);
-		    manet_rte_ip_pkt_destroy (ip_pkptr);
-			FOUT;
-			}			
-		else
-			{
-			rreq_option_ptr->src_x = curr_x;
-			rreq_option_ptr->src_y = curr_y;
-			}
-		}
-	// END MHAVH
+	// get the previous node address :  
+	// so we can retreave coordinates of the previos node for GeoTable
+	// GeoTable must contain these coordinates because previous node is a neightboting node
+	
+	// Geo table  should contain the x,y coordinates of the node from which the
+	// packet has arrived ==> get coordinates of the previous node
+	if(aodv_geo_table_entry_exists(geo_table_ptr, ip_dgram_fd_ptr->src_addr))
+	{
+			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->src_addr, OPC_FALSE);
+			printf("Previous node's location (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
+		 	prev_x = geo_entry_ptr->dst_x; 
+			prev_y = geo_entry_ptr->dst_y;
+			
+	}	
+	else
+	{
+			printf("\n ############ ERROR!!! Previous node's coordinates are NOT found!!!\n\n");
+			prev_x = -1;
+			prev_y = -1;
+	}
+	
+	
+	// Check if intermediate node has to rebraodcast this RREQ based on additional geoAODV or LAR conditions
+	if (aodv_geo_rebroadcast(rreq_option_ptr->src_x, rreq_option_ptr->src_y,	
+								prev_x,  prev_x, 
+								curr_x,  curr_y, 		
+								rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,	
+								(double) ((rreq_option_ptr->request_level+1) * 90),
+								geo_routing_type) == OPC_FALSE)
+	{
+		op_pk_destroy (aodv_pkptr);
+		manet_rte_ip_pkt_destroy (ip_pkptr);
+		FOUT;
+	}
+	// Re-broadcast the RREQ
+	// END MHAVH -- HAVHMR
 	
 	/* Rebroadcast the route request packet	*/
 	/* Decrement the TTL field by one		*/
@@ -1388,19 +1388,33 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
 	
-	// MHAVH 08/11/08 - debug
-	
+	// MHAVH 08/11/08
+	// VHMR 08/03/09
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "name", &name);
-	
-	printf("@@@RREP Arrival with dest_sequence number of [%d] and ttl of [%d]\n", rrep_option_ptr->dest_seq_num, 
-					ip_dgram_fd_ptr->ttl);
-	printf("RREP:(%.f, %.f), %f\n",  
-			rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, op_sim_time());	
 	inet_address_print(tmp_ip_addr , rrep_option_ptr->dest_addr);
-	printf("  * received with dest_addr of %s by %s\n", tmp_ip_addr, name);
-	// END MHAVH
+	
+	// DEBUG*********************
+	printf("  ************** RREP with dest %s arrived at %s\n", tmp_ip_addr, name);
+	printf("  RREP info:\n  Sequence # = %d] TTL = %d \n", rrep_option_ptr->dest_seq_num, ip_dgram_fd_ptr->ttl);
+	printf("  DEST(x,y)= (%.f, %.f), Time = %f\n\n", rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, op_sim_time());	
+	
+	// Remove old GeoTable entry because if someone else knows path to destination
+	// then someonelese has better info about destination and 
+	// local destination inforaiton is invalid.
+	aodv_geo_table_entry_remove (geo_table_ptr,  rrep_option_ptr->dest_addr);
+	
+	// Update GeoTable with fresher originating node information
+	if ((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
+	{
+		printf("  UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+		aodv_geo_table_update (geo_table_ptr,  rrep_option_ptr->dest_addr, rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
+	}
+	
+	// END VHMR 08/03/09 -- Future update: if RREQ carries fresh dest coordinates than update GeoTable
+
+	
 	
 	/* Check if node has received its own route reply */
 	if(manet_rte_address_belongs_to_node (module_data_ptr, rrep_option_ptr->dest_addr))
@@ -1481,22 +1495,6 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 										in_port_info, rrep_option_ptr->hop_count, rrep_option_ptr->dest_seq_num, 
 										rrep_option_ptr->lifetime);
 		
-		// MHAVH 11/03/08 - insert the new entry into the geo table entry
-		// if the entry is already in the geo table, delete it so we can reinsert it
-		printf("  * there should be no geo entry for the source of the rrep\n");
-		if(aodv_geo_table_entry_exists(geo_table_ptr, rrep_option_ptr->dest_addr))
-			{
-			printf("!!!Assertion error: there is no route to the destination but there is a geo entry\n");
-			aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
-			}
-		
-		if((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
-			{
-			aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-								rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
-			}
-		
-		// MHAVH
 	
 		/* Send all packets queued to this destination	*/
 		aodv_rte_all_pkts_to_dest_send (rrep_option_ptr->dest_addr, route_entry_ptr, reached_src);
@@ -1561,26 +1559,6 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 				{
 				aodv_route_table_entry_state_set (route_table_ptr, route_entry_ptr, rrep_option_ptr->dest_addr, AodvC_Valid_Route);
 				}
-					
-			// MHAVH 11/03/08 - remove the current entry, which is no longer valid 
-			
-			// if there is an entry in the geo table, delete it first so that we may overwrite it
-			printf("  * there should be a newer geo entry for the source of the rrep we currently have in the table\n");
-			if(aodv_geo_table_entry_exists(geo_table_ptr, rrep_option_ptr->dest_addr))
-				{
-				geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rrep_option_ptr->dest_addr, OPC_FALSE);
-				printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
-				aodv_geo_table_entry_delete(geo_table_ptr, rrep_option_ptr->dest_addr);
-				}
-			
-			if((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
-				{
-				// insert the new entry into the geo table
-				aodv_geo_table_insert(geo_table_ptr, rrep_option_ptr->dest_addr,
-						rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
-				}
-			
-			// MHAVH
 		
 			/* Mark the destination sequence as valid	*/
 			aodv_route_table_entry_param_set (route_entry_ptr, AODVC_ROUTE_ENTRY_VALID_SEQ_NUM_FLAG, OPC_TRUE);
@@ -1880,19 +1858,12 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 	InetT_Subnet_Mask		selected_subnet_mask;
 	Boolean					hello_msg = OPC_FALSE;
 
-	// MHAVH 11/04/08 - local variables to set the geo table
-	Boolean					is_src_prev_hop = OPC_FALSE; // if src is not the previous hop we don't update anything
-	double					geo_x;
-	double					geo_y;
-	InetT_Address			geo_entry_addr;
-	AodvT_Geo_Entry*		geo_entry_ptr = OPC_NIL;
-	// MHAVH
-	
 	/** Creates or updates the route entry to the	**/
 	/** previous hop from which the control packet	**/
 	/** was received.								**/
 	FIN (aodv_rte_route_table_entry_update (<args>));
-		
+	
+	
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
 	
@@ -1904,11 +1875,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 		
 			/* Check if the source address is the previous hop	*/
 			if (inet_address_equal (prev_hop_addr, rreq_option_ptr->src_addr))
-				{
-				// MHAVH 11/07/08 - set the boolean
-				is_src_prev_hop = OPC_TRUE;
-				// END MHAVH
-				
+				{	
 				/* Get the source sequence number	*/
 				sequence_num = rreq_option_ptr->src_seq_num;
 				}
@@ -1921,13 +1888,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 		
 			/* Initialize the lifetime to active route timeout	*/
 			lifetime = route_table_ptr->route_expiry_time;
-		
-			// MHAVH 11/04/08 - set the src x and y geo coordinates to the right values
-			geo_x = rreq_option_ptr->src_x;
-			geo_y = rreq_option_ptr->src_y;
-			geo_entry_addr = rreq_option_ptr->src_addr;
-			// MHAVH
-			
+				
 			break;
 			}
 
@@ -1938,10 +1899,6 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 			/* Check if the source address is the previous hop	*/
 			if (inet_address_equal (prev_hop_addr, rrep_option_ptr->dest_addr))
 				{
-				// MHAVH 11/07/08 - set the boolean
-				is_src_prev_hop = OPC_TRUE;
-				// END MHAVH
-				
 				/* Get the source sequence number	*/
 				sequence_num = rrep_option_ptr->dest_seq_num;
 				lifetime = rrep_option_ptr->lifetime;
@@ -1956,13 +1913,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 			
 			/* Check if this is the destination of the route reply	*/
 			reached_src = manet_rte_address_belongs_to_node (module_data_ptr, rrep_option_ptr->src_addr);
-			
-			// MHAVH 11/04/08 - set the dst x and y geo coordinates to the right values
-			geo_x = rrep_option_ptr->dst_x;
-			geo_y = rrep_option_ptr->dst_y;
-			geo_entry_addr = rrep_option_ptr->dest_addr;
-			// MHAVH
-			
+						
 			break;
 			}
 			
@@ -2008,31 +1959,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 		/* Create a new route entry				*/
 		route_entry_ptr = aodv_route_table_entry_create (route_table_ptr, prev_hop_addr, selected_subnet_mask, prev_hop_addr, in_port_info, 
 														 1, sequence_num, lifetime);
-		
-		// MHAVH 11/04/08 - create a brand new geo entry
-		if(!hello_msg && is_src_prev_hop)
-			{
-			if(tlv_options_ptr->type == AODVC_ROUTE_REQUEST)
-				{
-				printf("  * this should be a brand new geo entry for a neighbor of the src of the rreq\n");
-				}
-			else
-				{
-				printf("  * this should be a brand new geo entry for a neighbor of the src of the rrep\n");
-				}
-			if(aodv_geo_table_entry_exists(geo_table_ptr, geo_entry_addr))
-				{
-				printf("!!!Assertion error: there is no route to the destination but there is a geo entry\n");
-				geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, geo_entry_addr, OPC_FALSE);
-				printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, 
-															op_sim_time());
-				printf("Time when the entry was added: %f\n", geo_entry_ptr->insert_time);
-				aodv_geo_table_entry_delete(geo_table_ptr, geo_entry_addr);
-				}
-			aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y);
-			}
-		// MHAVH
-		
+			
 		/* Send all packets queued to this destination	*/
 		aodv_rte_all_pkts_to_dest_send (prev_hop_addr, route_entry_ptr, reached_src);
 		}
@@ -2088,35 +2015,45 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 				route_entry_ptr->valid_dest_sequence_number_flag = OPC_FALSE;
 			else
 				route_entry_ptr->valid_dest_sequence_number_flag = OPC_TRUE;
-			
-			// MHAVH 11/04/08 - modify an existing geo entry
-			if(!hello_msg && is_src_prev_hop)
-			{
-				if(tlv_options_ptr->type == AODVC_ROUTE_REQUEST)
-					{
-					printf("  * there should be a newer geo entry for the neighbor\n");
-					printf("          which source of the rreq we currently have in the table\n");
-					}
-				else
-					{
-					printf("  * there should be a newer geo entry for the neighbor\n");
-					printf("          which source of the rrep we currently have in the table\n");
-					}
-				if(aodv_geo_table_entry_exists(geo_table_ptr, geo_entry_addr))
-					{
-					geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, prev_hop_addr, OPC_FALSE);
-					printf("OLD ENTRY in the geo table (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, 
-															op_sim_time());
-					aodv_geo_table_entry_delete(geo_table_ptr, geo_entry_addr);
-					}
-				aodv_geo_table_insert(geo_table_ptr, geo_entry_addr, geo_x, geo_y);
-			}
-			// MHAVH
-			
+						
 			/* Update the expiry_time of the route entry */
 			aodv_route_table_entry_expiry_time_update (route_entry_ptr, prev_hop_addr, lifetime, AODVC_ROUTE_ENTRY_INVALID);
 			}
 		}
+	
+	
+	
+	// HAVMR - 08/03/09 - update geo table with coordinates of the from RREQ or RREP
+	switch(geo_routing_type)
+	{
+		case AODV_TYPE_GEO_STATIC:
+		case AODV_TYPE_GEO_EXPAND:
+		case AODV_TYPE_GEO_ROTATE:
+		case AODV_TYPE_GEO_ROTATE_01:
+			// Update GeoTable
+			if (tlv_options_ptr->type == AODVC_ROUTE_REPLY)
+			{
+				// VHMR 08/03/09 -- greedy update ==> save destination coordinate regardless
+				printf("RREP: updating GeoTable w. Destination coordinates @ %.2\n", op_sim_time());
+				aodv_geo_table_update(geo_table_ptr, rreq_option_ptr->dest_addr, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y);
+			}
+			else if (tlv_options_ptr->type == AODVC_ROUTE_REQUEST)
+			{
+				// VHMR 08/03/09 -- greedy update ==> save source coordinate regardless
+				printf("RREQ: updating GeoTable w. Source coordinates @ %.2\n", op_sim_time());
+				aodv_geo_table_update(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+			}
+			break;
+			
+		case AODV_TYPE_LAR_DISTANCE:
+		case AODV_TYPE_LAR_ZONE:
+		case AODV_TYPE_REGULAR:
+		default:
+			// does NOT maintain coordinates
+			break;
+		
+	}
+	// End VHMR 08/03/09
 	
 	FOUT;
 	}
@@ -2151,13 +2088,30 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 			route_entry_ptr->valid_dest_sequence_number_flag = OPC_FALSE;
 		else
 			route_entry_ptr->valid_dest_sequence_number_flag = OPC_TRUE;
-		if(geo_routing == AODV_OPTION_ANGLE_HELLO)
-			{
-		    // MHAVH - 03/17/09 - update geo table with coordinates of the neighbor
-	        aodv_geo_table_insert(geo_table_ptr, prev_hop_addr,((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_x,
-								((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_y);
-			}
 		}
+	
+	
+	// HAVMR - 03/17/09 - update geo table with coordinates of the neighbor
+	// VHMR 
+	switch(geo_routing_type)
+	{
+		case AODV_TYPE_GEO_STATIC:
+		case AODV_TYPE_GEO_EXPAND:
+		case AODV_TYPE_GEO_ROTATE:
+		case AODV_TYPE_GEO_ROTATE_01:
+			// Update GeoTable
+			aodv_geo_table_update(geo_table_ptr, prev_hop_addr,((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_x,
+								((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_y);
+			break;
+			
+		case AODV_TYPE_LAR_DISTANCE:
+		case AODV_TYPE_LAR_ZONE:
+		case AODV_TYPE_REGULAR:
+		default:
+			// does NOT maintain coordinates
+			break;
+		
+	}
 	
 	FOUT;
 	}
@@ -2165,8 +2119,8 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 
 // MHAVH 13/11/08 - added a parameter which is the request_level we are sending with 
 static void
-aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address dest_addr, int ttl_value, double request_expiry_time, int rreq_retry,
-														int request_level)
+aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address dest_addr, int ttl_value, 
+							 double request_expiry_time, int rreq_retry, int request_level)
 	{
 	int							dest_seq_num;
 	AodvT_Packet_Option*		rreq_option_ptr;
@@ -2177,22 +2131,12 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	char						temp_str [256];
 	Ici*						ip_iciptr;
 	int							mcast_major_port = IPC_MCAST_ALL_MAJOR_PORTS;
-	// MHAVH 10/16/08
-	Objid own_id;
-	Objid ppid;
-	double src_x;
-	double src_y;
-	AodvT_Geo_Entry* geo_entry_ptr;
 	
+	// MHAVH 10/16/08
 	// MHAVH - 03/17/09 - list of all the neighbors
-	PrgT_List* neighbor_list;
-	AodvT_Conn_Info* neighbor;
-	Boolean neighbor_in_request_level = OPC_FALSE;
-	AodvT_Geo_Entry* geo_neighbor;
-	double angle;
-	int i;
-	int list_size;
-	// MHAVH
+	Objid 				own_id;
+	Objid 				ppid;
+	double 				src_x, src_y, dst_x, dst_y;
 		
 	/** Broadcasts a route request message	**/
 	FIN (aodv_rte_route_request_send (<args>));
@@ -2213,7 +2157,7 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	sequence_number++;
 	
 	// MHAVH 16/10/08 get the x and y position of the source node
-	
+	// VHMR 08/03/09
 	// debug
 	printf("***Creating RREQ with src_sequence number [%d] and ttl of [%d]\n", sequence_number, ttl_value);
 	
@@ -2221,92 +2165,25 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "x position", &src_x);
 	op_ima_obj_attr_get (ppid, "y position", &src_y);
-	// MHAVH
 	
-	// MHAVH 01/11/08 - add the x & y positions from the geo table if available
-	if(aodv_geo_table_entry_exists(geo_table_ptr, dest_addr))
-		{
-		geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
-		
-		printf("Geo destination Exists.\n");
-		
-		if(geo_routing == AODV_OPTION_ANGLE_HELLO)
-			{
-			neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
-			while((neighbor_in_request_level == OPC_FALSE) && (request_level != BROADCAST_REQUEST_LEVEL))
-				{
-				list_size = prg_list_size(neighbor_list);
-				for(i = 0; i < list_size; i++)
-					{
-				    neighbor = prg_list_access(neighbor_list, i);
-					geo_neighbor = aodv_geo_table_entry_get(geo_table_ptr, neighbor->neighbor_address, OPC_FALSE);
-					if(geo_neighbor != OPC_NIL)
-						{
-							angle = aodv_rte_rreq_calculate_angle(src_x, src_y, geo_neighbor->dst_x, 
-									geo_neighbor->dst_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y);
-							if(aodv_rte_rreq_within_area(angle, request_level));
-							{
-							// debugging messages inside function
-							rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
-						   			grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
-									route_request_id, dest_addr, 
-									dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-									src_x, src_y,
-									geo_entry_ptr->dst_x, geo_entry_ptr->dst_y,
-									request_level);	
-							neighbor_in_request_level = OPC_TRUE;
-							break;      // we have found a decent entry, no need to recreate the rreq option if we find a second entry
-							}
-						}
-					
-					}
-					if(neighbor_in_request_level == OPC_FALSE)
-					{
-					request_level++;
-					}
-				}
-			if(request_level == BROADCAST_REQUEST_LEVEL)
-				{
-					rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
+	
+	// Compute the new, if necessary, request level for AODV type
+	// destination coordinates are passed by reference
+	request_level = aodv_geo_compute_expand_flooding_angle(neighbor_connectivity_table, dest_addr, src_x, src_y, 
+														   request_level, geo_table_ptr, geo_routing_type,		
+														   dst_x, dst_y); 
+	
+	
+	// Create RREQ to reroadcast
+	rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (
+								OPC_FALSE, OPC_FALSE,
 						   		grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
 								route_request_id, dest_addr, 
 								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
 								src_x, src_y,
-								geo_entry_ptr->dst_x, geo_entry_ptr->dst_y,
+								dst_x, dst_y,
 								request_level);	
-				}
 
-			}
-		else
-			{
-			// debugging messages inside function
-			rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
-						   			grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
-									route_request_id, dest_addr, 
-									dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-									src_x, src_y,
-									geo_entry_ptr->dst_x, geo_entry_ptr->dst_y,
-									request_level);	
-			}
-		}
-	else
-		{
-		/* Create a default route request option	*/
-	    // MHAVH 11/10/08 - modify a function
-		
-		printf("Geo destination NOT FOUND. \n");	
-		// debug messages inside function
-	    rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (OPC_FALSE, OPC_FALSE,
-								grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
-								route_request_id, dest_addr, 
-								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-								src_x, src_y,								// Source geo coordinates
-								DEFAULT_X, DEFAULT_Y,					// Destination geo coordinates
-								BROADCAST_REQUEST_LEVEL);				// Geo Request Level
-		}
-	
-	// debug
-	printf("Done creating RREQ\n\n");
 	
 	// MHAVH
 	
@@ -3486,12 +3363,20 @@ aodv_rte_rreq_timer_expiry_handle (void* rreq_id_ptr1, int PRG_ARG_UNUSED(code))
 			ring_traversal_time = 2.0 * node_traversal_time * (new_ttl_value  + timeout_buffer);
 			
 			// MHAVH 13/11/08 - reset the number of retries to 0, increase the request level
+			// switch statement:
+			// case GEOAODV_STATIC:
 			request_entry_ptr->num_retries = 0;
 			request_entry_ptr->request_level++;
-			// END MHAVH
+	
 			aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
 									 request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
 													request_entry_ptr->request_level);
+			// case our GEOAODV_ROTATE_01
+			//aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
+			//						 			request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
+			//										BROADCAST_REQUEST_LEVEL);
+			
+				// END MHAVH
 			}
 		}
 	else
@@ -4008,96 +3893,33 @@ aodv_rte_forward_request_delete (void* inet_addr_vptr, int req_id)
 	FOUT;
 	}
 
-// MHAVH 11/11/08 - calculates an angle in degrees between src node, curr node, and dst node
-static double
-aodv_rte_rreq_calculate_angle(double src_x, double src_y, 
-						double curr_x, double curr_y, double dst_x, double dst_y)
-	{
-	double a_SD_numer;
-	double a_SD_denom;
-	
-	double a_SC_numer;
-	double a_SC_denom;
-	
-	double SD_length;
-	double SC_length;
-	
-	double angle_form_numer;
-	double angle_form_denom;
-	
-	double pi = acos(-1);
-	
-	double angle;
-	
-	
-	
-	FIN (aodv_rte_rreq_calculate_angle( <args> ));
-	
-	a_SD_numer = dst_y - src_y;
-	a_SD_denom = dst_x - src_x;
-	
-	a_SC_numer = curr_y - src_y;
-	a_SC_denom = curr_x - src_x;
-	
-	SD_length = sqrt(pow(a_SD_denom, 2.0) + pow(a_SD_numer, 2.0));
-	SC_length = sqrt(pow(a_SC_denom, 2.0) + pow(a_SC_numer, 2.0));
-	
-	angle_form_numer = (a_SD_denom * a_SC_denom) + (a_SD_numer * a_SC_numer);
-	angle_form_denom = SD_length * SC_length;	
-	printf("angle_form_numer -> %.f, angle_form_denom -> %.f\n", angle_form_numer,
-				angle_form_denom);
-	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", 
-		(acos(angle_form_numer/angle_form_denom) * (180/pi)));
-	
-	angle = acos(angle_form_numer/angle_form_denom) * (180/pi);
 
-    FRET(angle);	
 
-	}
 
-// MHAVH 11/11/08 - if the angle is smaller than the request level,
-// we can forward the packet, otherwise drop it
-static Boolean
-aodv_rte_rreq_within_area(double angle, int request_level)
-	{
-	double requested_max_angle;
-	
-    FIN (aodv_rte_rreq_within_area( <args> ));
-	requested_max_angle = (request_level+1) * 45.0;
-	if(angle <= requested_max_angle)
-		{
-	    FRET(OPC_TRUE);
-		}
 
-	FRET(OPC_FALSE);
+// Purpose:		Initialize global GeoAODV parameters
+// In/Out:		NONE
+// Author:		VHMR 8/03/09
+static void	aodv_rte_geo_init()
+{
+	Objid				aodv_parms_id;
+	Objid				aodv_parms_child_id;
+	
+	
+	FIN (aodv_rte_geo_init());
+	
+	
+	/* Read the AODV Parameters	*/
+	op_ima_obj_attr_get (own_mod_objid, "manet_mgr.AODV Parameters", &aodv_parms_id);
+	aodv_parms_child_id = op_topo_child (aodv_parms_id, OPC_OBJTYPE_GENERIC, 0);
 
-	}
+	
+	// Read GeoType
+	op_ima_obj_attr_get(aodv_parms_child_id, "Position-Based Routing", &geo_routing_type);
+		
+	// Create GeoTable
+	geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
+	
 
-static Boolean
-aodv_rte_rreq_within_distance(double src_x, double src_y,
-					double curr_x, double curr_y, double dst_x, double dst_y)
-	{
-	double distanceDS_x;
-	double distanceDS_y;
-	double lengthDS;
-	
-	double distanceDC_x;
-	double distanceDC_y;
-	double lengthDC;
-	
-	FIN (aodv_rte_rreq_within_distance( <args> ));
-	distanceDS_x = dst_x - src_x;
-	distanceDS_y = dst_y - src_y;
-	distanceDC_x = dst_x - curr_x;
-	distanceDC_y = dst_y - curr_y;
-	
-	lengthDS = sqrt(pow(distanceDS_x, 2.0) + pow(distanceDS_y, 2.0));
-	lengthDC = sqrt(pow(distanceDC_x, 2.0) + pow(distanceDC_y, 2.0));
-	
-	if(lengthDC <= lengthDS)
-		{
-		FRET(OPC_TRUE);
-		}
-	
-	FRET(OPC_FALSE);
-	}
+	FOUT;
+}
