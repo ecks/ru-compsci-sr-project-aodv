@@ -60,11 +60,24 @@ extern "C" {
 #define BROADCAST_REQUEST_LEVEL         3
 // MHAVH
 
-// MHAVH 03/18/09 - types of possible aodv options
-#define AODV_OPTION_NONE				0
-#define AODV_OPTION_ANGLE				1
-#define AODV_OPTION_DISTANCE			2
-#define AODV_OPTION_ANGLE_HELLO			3
+// HAV 03/18/09 - types of possible aodv options
+//#define AODV_OPTION_NONE				0
+//#define AODV_OPTION_ANGLE				1
+//#define AODV_OPTION_DISTANCE			2
+//#define AODV_OPTION_ANGLE_HELLO			3
+
+// HAV_MR 06/26/09 - types of possible aodv options
+#define AODV_TYPE_REGULAR			0	// Regular AODV
+#define AODV_TYPE_LAR_DISTANCE		1	// LAR based on the node's distance to the destination
+#define AODV_TYPE_LAR_ZONE			2	// LAR based on request zone
+#define AODV_TYPE_GEO_STATIC		3  // staic angle computed based on the source
+#define AODV_TYPE_GEO_EXPAND		4  // angle is expanded by the intermediate nodes if 
+										   // no neighbours within the current angle
+#define AODV_TYPE_GEO_ROTATE		5  // recompute the current node's belonging to the
+										   // search area based on previous node's location, instead of
+											// node the source node location
+#define AODV_TYPE_GEO_ROTATE_01		6  // set angle to 180 degrees, forward to all neighbours in the
+										   // 180 degree, if fails to find the route do regular AODV 
 
 
 /******** Enumenated Data Types *********/
