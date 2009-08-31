@@ -102,6 +102,63 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 	FOUT;
 	}
 
+
+// Purpose: Overwrites an entry in the GeoTable if exist
+//			if not, simply inserts the entry
+// In:		geo_table_prt -- pointer to the GeoTable
+//			address -- IP address of the node to be added into the GeoTable
+//			x,y     -- coordinates of the node to be added into the GeoTable
+// Out: 	NONE
+// Uses:	aodv_geo_table_entry_exists
+//			aodv_geo_table_entry_delete
+//			aodv_geo_table_insert
+void aodv_geo_table_update (AodvT_Geo_Table* geo_table_ptr, 
+							InetT_Address address,	double x, double y)
+{
+		
+	/** Inserts a new geo entry into the originating geo table	**/
+	FIN (aodv_geo_table_update (<args>));
+	
+		
+	// Delete old entry if exists
+	if (aodv_geo_table_entry_exists(geo_table_ptr, address))
+	{
+			aodv_geo_table_entry_delete(geo_table_ptr, address);
+	}
+	
+
+	// add a new entry
+	aodv_geo_table_insert(geo_table_ptr, address, x, y);
+					
+	
+	FOUT;
+}
+
+
+// Purpose: remove entry from geoTable if exists
+// In:		geo_table_prt -- pointer to the GeoTable
+//			address -- IP address of the node to be added into the GeoTable
+// Out: 	NONE
+// Uses:	aodv_geo_table_entry_exists
+//			aodv_geo_table_entry_delete
+Compcode
+aodv_geo_table_entry_remove (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
+{
+	
+	/** Deletes all entries that have the target address	**/
+	FIN (aodv_geo_table_entry_remove (<args>));
+	
+
+	// Delete old entry if exists
+	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address))
+	{
+			aodv_geo_table_entry_delete(geo_table_ptr, dst_address);
+			FRET (OPC_COMPCODE_SUCCESS);
+	}
+	FRET (OPC_COMPCODE_FAILURE);
+}
+
+
 AodvT_Geo_Entry*
 aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove)
 	{
