@@ -354,6 +354,8 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 				rrep_option_ptr->dest_seq_num, rrep_option_ptr->src_addr, rrep_option_ptr->lifetime, AODVC_ROUTE_REPLY,
 				rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 			printf("Done copying RREP packet\n\n");
+			op_prg_odb_bkpt ("HELLO");
+
 			// MHAVH			
 			break;
 			}
