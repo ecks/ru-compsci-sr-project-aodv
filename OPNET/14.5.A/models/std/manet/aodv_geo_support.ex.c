@@ -87,7 +87,6 @@ double aodv_geo_compute_angle(double start_x, double start_y,
 	
 		
 	angle_form_numer = (vector_SE_x * vector_SM_x) + (vector_SE_y * vector_SM_y);
-	
 	angle_form_denom = aodv_geo_vector_length(start_x, start_y, end_x, end_y) *  
 		               aodv_geo_vector_length(start_x, start_y, mid_x, mid_y);	
 	
@@ -157,32 +156,25 @@ Boolean aodv_geo_find_neighbor(	AodvT_Geo_Table* geo_table_ptr,
 
 // Purpose:	 Determine if the lenght of the vector formed by start-end  points(vector SE) is
 //			 	 greater than the length of the vector formed by middle-end points(vector ME)
-//
-// IN:			 start_x, start_y	-- position of node where the RREQ was forwarded from
-//				 mid_x, mid_y		-- position of the node that received the RREQ
+// IN:			 start_x, start_y	-- position of node where the RREQ was received
+//				 mid_x, mid_y		-- position of node that received the RREQ
 //				 end_x, end_y		-- position of the destination node
-//
 // OUT:		 True if length(SE) >= length (ME)
 //			 	 False, otherwise
-Boolean aodv_geo_LAR_distance(	double start_x, double start_y,
-								double mid_x,   double mid_y, 
-								double end_x,   double end_y)
+Boolean
+aodv_geo_LAR_distance(double start_x, double start_y,
+				  double mid_x,   double mid_y, 
+				  double end_x,   double end_y)
 {
 		
 	FIN (aodv_rte_rreq_within_distance( <args> ));
 	
 	
-	if (aodv_geo_vector_length(start_x, start_y, end_x, end_y) >= 
+	if (aodv_geo_vector_length(start_x, start_y, end_x, end_y) <= 
 		aodv_geo_vector_length(mid_x, mid_y, end_x, end_y))
 	{
-		// Return true if distance from previous node to destination is longer than 
-		// the distance from the new node to the destination
-		//  The idea is that if the new node is closer to destination then this node will rebroadcast the RREQ
-	
 		FRET(OPC_TRUE);
 	}
-	
-	//  This node (mid) is farther away from destination than previous (start) node => Do NOT rebroadcast the RREQ
 	
 	FRET(OPC_FALSE);
 }
@@ -190,17 +182,6 @@ Boolean aodv_geo_LAR_distance(	double start_x, double start_y,
 
 
 
-// Purpose:	 Determines if the current node is within rebroadcast area or not
-//			 
-// IN:		 (orig_x, orig_y) -- GPS coordinates of the source/originator node
-//			 (prev_x, prev_y) -- GPS coordinates of the node from which the packet was forward, i.e. previous node
-//			 (curr_x, curr_y) -- GPS coordinates of the current (i.e. this) node
-// 			 (dest_x, dest_y) -- GPS coordinates of the destination node
-//			 flooding_angle   -- the value of angle that determines the search area
-//			 aodv_Type        -- the type of AODV protocol variation used in this node
-//
-// OUT:		True if the RREQ packet will have to be forwarded
-//			False, otherwise
 Boolean aodv_geo_rebroadcast(
 						double orig_x, double orig_y,		// Coordinates of the node that originated RREQ
 						double prev_x, double prev_y,		// Coordinates of the node that send RREQ
@@ -225,7 +206,6 @@ Boolean aodv_geo_rebroadcast(
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 			// GeoAODV implementation:
-			
 			// Compute the angle formed by the destination, source and current nodes
 			// if computed angle is not larger than flooding angle (e.g. the value is carried via request level)
 			// then forward RREQ, else drop RREQ
@@ -235,7 +215,7 @@ Boolean aodv_geo_rebroadcast(
 			// in aodv_rte process model
 			
 			// Check if this is not a broadcast
-			if(flooding_angle < MAX_ANGLE)
+			if(flooding_angle < 360)
 			{
 				
 				// Compute the angle formed by the destination node, originating node, and current node
@@ -297,7 +277,6 @@ Boolean aodv_geo_rebroadcast(
 			// Set angle to 180 degrees, forward to all neighbours in the search area formed by the 
 			// flooding angle of 180 degrees, 
 			// if fails to find the route then resort to regular AODV
-			//
 			// NOTE: angle at the intermediate node is computed based on the previous node location
 			
 			// Check if this is not a broadcast
@@ -324,7 +303,6 @@ Boolean aodv_geo_rebroadcast(
 		
 		case AODV_TYPE_LAR_ZONE:
 			// NOT implemented yet
-			
 		case AODV_TYPE_REGULAR:		
 			FRET(OPC_TRUE);
 		}
@@ -370,7 +348,7 @@ int aodv_geo_compute_expand_flooding_angle(
 	FIN (aodv_geo_rreqsend( <args> ));
 
 
-	// default destination coordinates 
+	// default destination coordinates and flood angle is brodacast angle.
 	*dst_x = DEFAULT_X;
 	*dst_y = DEFAULT_Y;
 	
@@ -380,17 +358,27 @@ int aodv_geo_compute_expand_flooding_angle(
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
 		case AODV_TYPE_GEO_ROTATE_01:
-			
-			printf("VHRCJS: Compute Flooding Angle Src(%.2f, %.2f) -- Dest(%.2f, %.2f)\n", src_x, src_y, dst_x, dst_y);
 		
 			// handle via an outside function creating RREQ with Geo Information
 			if(aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
 			{
-				// Destination is not in not in geoTable ==> BROADCAST)
+				// Destination is not in geoTable ==> BROADCAST)
 				request_level = BROADCAST_REQUEST_LEVEL;
 			}
 			else
 			{
+			
+				// RJ_VH 5/20/10
+				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
+				// unless there are no neighboring nodes within that area
+				if (aodv_type == AODV_TYPE_GEO_ROTATE_01 && request_level == 0)
+				{
+					// This is the initial Route discover phase. First time request level is set to 180 
+					request_level = 1; // initially flooding angle = 180 degrees
+				}
+
+			
+			
 				// Get Destination's info
 				geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
 
@@ -414,9 +402,6 @@ int aodv_geo_compute_expand_flooding_angle(
 				*dst_x = geo_entry_ptr->dst_x;
 				*dst_y = geo_entry_ptr->dst_y;
 			}
-			
-			printf("VHRCJS: Flooding angle:\t %d\n",request_level);
-			FRET(request_level);
 			break;
 		
 		
@@ -431,8 +416,8 @@ int aodv_geo_compute_expand_flooding_angle(
 		}
 	
 	
-	// Destination is not in not in geoTable ==> BROADCAST)
+	// Destination is not  in geoTable ==> BROADCAST)
 	// or request level is computed to be broadcast
-	FRET(BROADCAST_REQUEST_LEVEL);
+	FRET(request_level);
 
 }
