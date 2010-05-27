@@ -1,0 +1,134 @@
+
+
+aodv_rte.function block
+    **NOTES**
+    One question, in general, what exactly is the role that these
+    function blocks play. If i recal when we looks at the actual
+    network interface in opnet we saw this code, so it handles
+    how this inteface behaves?
+
+
+    function blocks play. Are these called when packets are
+    line 202:       Call the method that instantiates
+                    the global GeoAODV parameters.
+
+    655-689:   		Inside of aodv_rte_app_pkt_arrival_handle 
+					The application packet has arrived and the node has no route to packet's destination.
+					The node initiates the Route Discovery process and sends an RREQ packet. 
+					Depending on the AODV type (e.g. GeoAODV, regular AODV, LAR, etc) the proper method
+					for RREQ message generation and dispatch is being called.
+
+					// Add logic for determining the initial size of the flooding angle ==> 
+					// May have been already implemented in a geoFunction that create RREQ packet.
+
+					This code block handles the generation of the correct route request, depending on whether 
+					or not the user wants GeoAODV and which version of AODV they want to use.
+
+                    **NOTES**
+					I noticed that several cases in the switch statement
+					call the same function. This is because they all use the same RREQ message format. 
+
+aodv_rte_rreq_pkt_arrival_handle 
+    line 727-732:  	Inside of aodv_rte_rreq_pkt_arrival_handle which handles RREQ packet arrival. 
+					These lines contain declarations for temporary variables.
+
+    line 733-737:   temporary variables for coordinates
+
+    line 758-777:  
+					This code, with the exception fo the last line, is an assortment of debug statements used to output...
+                        that the request packet has arrived
+                        the request packet's sequence
+                        the request packets time to live
+                        the source coordinates
+                        the destination coordinates 
+                        the flooding angle
+                        the current time
+					Finally it updated the GEO_AODV table with the coordinates of the source of RREQ packet.
+					// Need to check if the new coordinates are in fact the freshest (?)
+					// Perhaps also use the sequence number in the GeoTable 
+
+    line 816-818:   This is a debug statement to indicate that the 
+                    node received its own packet. This packet is 
+                    reduntant, therefore it is discarded.
+
+    line 971-973:   Debug statement to indicate that this fucntion
+                    has completed the RREQ arrival section.
+                            
+    line 990-992:   The route to destination is found. Generate a RREP message
+
+                    **NOTES**
+                    This method has been altered so that  aodv_rte_route_reply_send sends GeoAODV information
+                    aswell as information for regular AODV
+
+  line 1248-1254:  	Dealing with the situation that tries to determine if RREQ is to be rebroadcast
+					The first four lines of code obtain information about the packet and its parent(it's x and y coordinates).
+
+
+                    **NOTES**  
+                    when the call to op_topo_parent is made, what exactly 
+                    is the role of the object that is returned, i.e what
+                    exactly is a topological parent.
+
+  line 1256-1292:   The lines of code here obtain the current x and y 
+                    coordinates of the previous node. If they are not 
+                    found, then the x and y are assigned -1.
+
+  line 1314-1322:	Here we determine whether we have received IPv4 or IPv6, and generate the correct IP RREQ packet to encapsulate the packet.
+
+					**NOTES**
+					Here the calls to aodv_rte_ip_datagram_create only differ by the the second and fifth argument. IPv4 uses 
+					"InetI_Broadcast_v4_Addr" and IPv6 uses "InetI_Ipv6_All_Nodes_LL_Mcast_Addr" 
+					The naming scheme here suggest that there is more difference then just IP versions.
+					
+					PROBLEM: aodv_rte_ip_datagram_create was modified to carry one additional parameter which represents
+					the type of AODV packet. Based on the packet type the function incresed the size of AODV packet to reflect
+					additional information carried by the GeoAODV packets (i.e. coordinates and angle)
+					Mistakes:
+              			(1) The function does not differentiate between versions of AODV. It always updates the size of the packet.
+						(2) The function does not account for AODV_HELLO messages
+						(3) The message/packet size is not computed correctly. Here is one way the additional size can be repesented:
+						   a. (X, Y) pair is represented as (degrees N/S, minutes, seconds, N/S) and (degrees E/W, minutes, seconds, E/W)
+						       degrees N/S => 0...90 => 7 bits
+							   degrees E/W => 0...180 => 8 bits
+							   minutes => 0...60 => 6 bits (2 of each for latitude and longitude)
+							   seconds => 0...60 => 6 bits (2 of each for latitude and longitude)
+							   N/S ==> 0...1 => 1 bit
+							   E/W ==> 0...1 => 1 bit
+							   Therefore, (X,Y) pair needs 41 bit
+							   angle, using 5 degrees increment will need 360/5 = 0...72 => 7 bits
+					RREQ carries (x,y) for originator, (x,y) for destination, and angle => 89 bits total
+					RREP carries (x,y) from source which is the destination we have been looking for => 41 bits
+					HELLO carries (x,y) for the neighboring node only => 41 bits
+					
+					This should be modified ==> Mistake in the protocol implementation.
+					
+					
+					
+					
+aodv_rte_rrep_pkt_arrival_handle
+  line 1384-1390:   Variable declarations for two strings and Objids for this node and its parent	
+	
+  line 1405-1429:   Since we have received a rrep packets, we need to update the geotable with the most current x and y coordinates.
+                    First we remove the current entry for the destination update the table if the destination does not have the default
+                    x and y coordinates.
+
+                    **NOTES**
+                    Since we remove current entry from the table no matter what the situtaion is, and only add back when the coordinates
+                    are not default, don't we create  the possibility where that table does not have an entry in the table although the current
+                    route is know? I'm sure there is reason for this, I am just curios as to why it is done that way.
+					
+					Possible need to update: remove/update relationship is not clear... Re-evalaute the logic.
+					
+
+  line 1673-1675:   Here we create a new ip packet to encapsulate the AODV data into a IP datagram. 
+
+                    **NOTES**
+                    Does creating the packet in this line brodcast it a well?? The packet only appears in code agian for AODV statistics.
+
+  aodv_rte_route_table_entry_update
+  line 2040-2070:   Here we update the table according to what type of packet we have. If we have a  rrep we update the table with information about
+                    the destination. If we have received a rreq then we update the table with information about the previos hop (see lines 1881-1901)
+                    
+================================================================================================start next time
+  aodv_rte_route_table_entry_from_hello_update
+  line 2108-2128:    
