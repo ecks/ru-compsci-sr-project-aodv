@@ -1414,9 +1414,11 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	printf("  RREP info:\n  Sequence # = %d] TTL = %d \n", rrep_option_ptr->dest_seq_num, ip_dgram_fd_ptr->ttl);
 	printf("  DEST(x,y)= (%.f, %.f), Time = %f\n\n", rrep_option_ptr->dst_x, rrep_option_ptr->dst_y, op_sim_time());	
 	
+	// WE MAY NOT HAVE REACHED THE SOURCE YET!!!
+	
 	// Remove old GeoTable entry because if someone else knows path to destination
-	// then someonelese has better info about destination and 
-	// local destination inforaiton is invalid.
+	// then someone else has better info about destination and 
+	// local destination informaiton is invalid.
 	aodv_geo_table_entry_remove (geo_table_ptr,  rrep_option_ptr->dest_addr);
 	
 	// Update GeoTable with fresher originating node information
@@ -3709,6 +3711,8 @@ aodv_rte_ip_datagram_create (Packet* aodv_pkptr, InetT_Address dest_addr, AodvT_
 	op_pk_nfd_set_pkt (ip_pkptr, "data", aodv_pkptr);
 	
 	
+	
+	// MHAVH (?)
 	/* This is an AODV signaling packet. Based on the	*/
 	/* type of option set in the packet, increment its size		*/
 	switch (type)
