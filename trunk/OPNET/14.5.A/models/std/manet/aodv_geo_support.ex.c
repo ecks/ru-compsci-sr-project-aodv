@@ -12,9 +12,7 @@ const double MAX_ANGLE = 360;
 // IN:	    	 start_x, start_y -- starting point of the vector
 //			 	end_x, end_y	-- ending point of the vector
 // OUT:		 length of the vector
-double
-aodv_geo_vector_length(double start_x, double start_y,
-						double end_x,   double end_y)
+double	aodv_geo_vector_length(double start_x, double start_y,	double end_x,   double end_y)
 {
 	double x, y;
 
@@ -30,11 +28,11 @@ aodv_geo_vector_length(double start_x, double start_y,
 // Purpose: 	determine if the current node is within the search area
 //				
 // Algorithm:	compute the angle between if the angle is smaller than the request level,
-// we can forward the packet, otherwise drop it
+// 				we can forward the packet, otherwise drop it
+//
 // IN:			angle			-- angle in degrees formed by the 3 nodes (source, current, detination or previous, current, destination)
 //				request_level	-- request angle in multiples of 90
-Boolean
-aodv_rte_rreq_within_area(double computed_angle, int request_level)
+Boolean	aodv_rte_rreq_within_area(double computed_angle, int request_level)
 {	
     FIN (aodv_rte_rreq_within_area( <args> ));
 
@@ -45,9 +43,9 @@ aodv_rte_rreq_within_area(double computed_angle, int request_level)
 	// by 45 and not 90  degrees because the computed angle could be located
 	// on either side of the line that equally divides floodingn angle
 	if(computed_angle <= (request_level+1) * 45.0)
-		{
+	{
 	    FRET(OPC_TRUE);
-		}
+	}
 
 	FRET(OPC_FALSE);
 
@@ -55,11 +53,12 @@ aodv_rte_rreq_within_area(double computed_angle, int request_level)
 
 // MHAVH 11/11/08 
 // Purpose:   	Compute the angle SME formed by three points: start (S), middle (M), end (E)
+//
 // In:			start_x, start_y -- position of starting point S
 //				mid_x, mid_y	 -- position of the middle point M
 //				end_x, end_y	 -- position of ending point E	
+//
 // Out:			a value of the angle formed by the points S, M, E in units of degrees 
-
 double aodv_geo_compute_angle(double start_x, double start_y, 
 							  double mid_x, double mid_y, 
 							  double end_x, double end_y)
@@ -98,7 +97,6 @@ double aodv_geo_compute_angle(double start_x, double start_y,
 	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", angle);
 	
 	
-
     FRET(angle);	
 
 }
@@ -126,7 +124,7 @@ Boolean aodv_geo_find_neighbor(	AodvT_Geo_Table* geo_table_ptr,
 	
 	size = prg_list_size(neighbor_list);
 
-	// go through the lilst of neighbors
+	// go through the list of neighbors
 	for(i = 0; i < size; i++)
 	{
 		// get  neighbor
