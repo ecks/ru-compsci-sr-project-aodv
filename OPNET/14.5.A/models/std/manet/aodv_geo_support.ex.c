@@ -63,11 +63,11 @@ double aodv_geo_compute_angle(double start_x, double start_y,
 							  double mid_x, double mid_y, 
 							  double end_x, double end_y)
 {
-	double vector_SE_x;
-	double vector_SE_y;
+	double vector_MS_x;
+	double vector_MS_y;
 	
-	double vector_SM_x;
-	double vector_SM_y;
+	double vector_ME_x;
+	double vector_ME_y;
 			
 	double angle_form_numer;
 	double angle_form_denom;
@@ -78,23 +78,23 @@ double aodv_geo_compute_angle(double start_x, double start_y,
 		
 	FIN (aodv_geo_compute_angle( <args> ));
 	
-	vector_SE_x = end_x - start_x;
-	vector_SE_y = end_y - start_y;
+	vector_MS_x = mid_x - start_x;
+	vector_MS_y = mid_y - start_y;
 	
-	vector_SM_x = mid_x - start_x;
-	vector_SM_y = mid_y - start_y;
+	vector_ME_x = mid_x - end_x;
+	vector_ME_y = mid_y - end_y;
 	
 		
-	angle_form_numer = (vector_SE_x * vector_SM_x) + (vector_SE_y * vector_SM_y);
-	angle_form_denom = aodv_geo_vector_length(start_x, start_y, end_x, end_y) *  
-		               aodv_geo_vector_length(start_x, start_y, mid_x, mid_y);	
+	angle_form_numer = (vector_MS_x * vector_ME_x) + (vector_MS_y * vector_ME_y);
+	angle_form_denom = aodv_geo_vector_length(mid_x, mid_y, start_x, start_y) *  
+		               aodv_geo_vector_length(mid_x, mid_y, end_x, end_y);	
 	
 	angle = acos(angle_form_numer/angle_form_denom) * (180/PI);
 	
 	
-	// Debugging messages
-	printf("angle_form_numer -> %.f, angle_form_denom -> %.f\n", angle_form_numer,	angle_form_denom);
-	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", angle);
+// Debugging messages
+//	printf("angle_form_numer -> %.f, angle_form_denom -> %.f\n", angle_form_numer,	angle_form_denom);
+//	printf("acos(angle_form_numer/angle_form_denom) * (180/pi) -> %.f\n", angle);
 	
 	
     FRET(angle);	
@@ -152,23 +152,25 @@ Boolean aodv_geo_find_neighbor(	AodvT_Geo_Table* geo_table_ptr,
 
 }
 
-// Purpose:	 Determine if the lenght of the vector formed by start-end  points(vector SE) is
+// Purpose:	 Determine if the length of the vector formed by start-end  points(vector SE) is
 //			 	 greater than the length of the vector formed by middle-end points(vector ME)
-// IN:			 start_x, start_y	-- position of node where the RREQ was received
-//				 mid_x, mid_y		-- position of node that received the RREQ
+//
+// IN:			 start_x, start_y	-- position of node where the RREQ was generated (e.g. previous node, not an originator)
+//				 mid_x, mid_y		-- position of node that receives the RREQ
 //				 end_x, end_y		-- position of the destination node
-// OUT:		 True if length(SE) >= length (ME)
-//			 	 False, otherwise
+//
+// OUT:		 True,  if length(SE) >= length (ME)
+//			 False, otherwise
 Boolean
 aodv_geo_LAR_distance(double start_x, double start_y,
-				  double mid_x,   double mid_y, 
-				  double end_x,   double end_y)
+					  double mid_x,   double mid_y, 
+					  double end_x,   double end_y)
 {
 		
 	FIN (aodv_rte_rreq_within_distance( <args> ));
 	
 	
-	if (aodv_geo_vector_length(start_x, start_y, end_x, end_y) <= 
+	if (aodv_geo_vector_length(start_x, start_y, end_x, end_y) >=
 		aodv_geo_vector_length(mid_x, mid_y, end_x, end_y))
 	{
 		FRET(OPC_TRUE);
@@ -222,6 +224,8 @@ Boolean aodv_geo_rebroadcast(
 				// flooding angle, e.g. flooding angle is evenly devided by the line formed via source-destination nodes
 				angle = 2*aodv_geo_compute_angle(dest_x, dest_y, orig_x, orig_y, curr_x, curr_y);
 				
+				
+				// Use functions within the area if possible
 				if (angle > flooding_angle)
 				{
 					FRET(OPC_FALSE);
