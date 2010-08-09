@@ -12,5 +12,3 @@ void			 aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr);
 
 static AodvT_Geo_Entry* aodv_geo_table_entry_mem_alloc (void);
 
-// RJ_VH 07/07/10
-void 			aodv_geo_table_test ();
