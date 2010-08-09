@@ -64,6 +64,7 @@ void aodv_geo_table_entry_exists_test(AodvT_Geo_Table* geo_table_ptr)
     }
 }
 
+
 void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
 {
 	int i, j;
@@ -115,8 +116,5 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
 			printf("was (%f, %f) is (%f, %f)\n", inett_address_helper[i]->x, inett_address_helper[i]->y, tmp_entry->dst_x, tmp_entry->dst_y);
 				
 		}
-	}
-		
-	
+	}	
 }
-
