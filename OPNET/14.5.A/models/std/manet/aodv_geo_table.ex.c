@@ -148,8 +148,7 @@ void aodv_geo_table_update (AodvT_Geo_Table* geo_table_ptr,
 // Out: 	NONE
 // Uses:	aodv_geo_table_entry_exists
 //			aodv_geo_table_entry_delete
-Compcode
-aodv_geo_table_entry_remove (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
+Compcode aodv_geo_table_entry_remove (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
 {
 	
 	/** Deletes all entries that have the target address	**/
