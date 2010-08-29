@@ -16,6 +16,7 @@
 
 #define _ENTRY_EXISTS_TESTS 20
 #define _UPDATE_TESTS 20
+#define _REMOVE_TESTS 20
 
 typedef struct InetT_Address_Helper
 {

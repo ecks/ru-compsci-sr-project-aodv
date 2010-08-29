@@ -10,19 +10,8 @@ InetT_Address* generate_random_InetT_Address()
    inetT_address->addr_family = 0;
    inetT_address->address.ipv4_addr = rand();
 
-   printf("Returning ranomf InetT_Address\n");
+   printf("Returning random InetT_Address\n");
    return inetT_address;
-}
-
-void aodv_geo_table_test ()
-{
-    //create aodv_geo_table and call the proper tests with it
-	AodvT_Geo_Table* table = aodv_geo_table_create(InetC_Addr_Family_v4);
-	aodv_geo_table_entry_exists_test(table);
-	
-	table = aodv_geo_table_create(InetC_Addr_Family_v4);
-	aodv_geo_table_update_test(table);
-	free(table);
 }
 
 void aodv_geo_table_entry_exists_test(AodvT_Geo_Table* geo_table_ptr)
@@ -91,7 +80,7 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
 		aodv_geo_table_insert(geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
 		
 		inet_address_print (ip_address, *inett_address_helper[i]->inett_address);	
-		printf("Added %s with coordinate (%.0f, %.0f)\n", ip_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
+		//printf("Added %s with coordinate (%.0f, %.0f)\n", ip_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
 	}
 	
 	
@@ -128,9 +117,82 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
 	}	
 }
 
-// implicitly tests aodv_geo_table_entry_delete
+/**implicitly tests aodv_geo_table_entry_delete.
+ * we also rely on the fact the exists was already tested, since it will be used to 
+ * ensure that entries are properly removed.
+ */
 void aodv_geo_table_entry_remove_test(AodvT_Geo_Table* geo_table_ptr) {
-	fprintf(stderr, "##################################################\n");
-	fprintf(stderr, "aodv_geo_table_entry_remove_test(AodvT_Geo_Table*) not implemented\n");
-	fprintf(stderr, "##################################################\n");
+	int i, j;
+	InetT_Address_Helper	*inett_address_helper[_REMOVE_TESTS]; 
+	//AodvT_Geo_Entry 		*tmp_entry;
+	char					ip_address[INETC_ADDR_STR_LEN];
+	InetT_Address			*rand_address; // used for testing
+	InetT_Address_Helper	*tmp_helper; // used for swap after testing post conditions in the test loop.
+	int randArrayIndex;
+	
+	printf("\n\nStarting remove tests(%d)\n\n",_UPDATE_TESTS);
+	
+	//*inett_address_helper = malloc(_UPDATE_TESTS * sizeof(InetT_Address_Helper));
+	
+	// first off we will insert several
+	for (i = 0; i < _REMOVE_TESTS; i++)
+	{
+		inett_address_helper[i] = malloc(sizeof(InetT_Address_Helper));
+		inett_address_helper[i]->inett_address = generate_random_InetT_Address();
+		inett_address_helper[i]->x = rand();
+		inett_address_helper[i]->y = rand();
+		
+		aodv_geo_table_insert(geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
+		
+		inet_address_print (ip_address, *inett_address_helper[i]->inett_address);	
+		//printf("Added %s with coordinate (%.0f, %.0f)\n", ip_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
+	}
+	
+	printf("\n\nFinished populating list ip address and coordinates, now running remove tests...\n\n");	
+	
+	// here we will try to remove all of the element that we added, in a random order.
+	// we do so by getting a random index in the array. We will then put that element 
+	// at the "end" of the list, so that it cannot be choosen the next time around (since
+	// the random index is bounded by moding it with the loop counter.
+	for(j = _REMOVE_TESTS; j > 0; j--)
+	{
+		randArrayIndex = rand(); // get a random index in the array
+		randArrayIndex = randArrayIndex % j;
+		
+		rand_address = inett_address_helper[randArrayIndex]->inett_address;
+	
+		// try to remove, and index at random	
+		aodv_geo_table_entry_remove (geo_table_ptr, *rand_address);
+		
+		inet_address_print (ip_address, *rand_address);
+		// tests that it was removed
+		if (aodv_geo_table_entry_exists(geo_table_ptr, *rand_address) == OPC_TRUE) 
+		{
+			printf("%s %S\n", "REMOVE TEST FAILED ON", ip_address);
+		}
+		else
+		{
+			printf("%s %s\n", "Remove test passed on", ip_address); 
+		}
+		
+		// swap the removed element, so that it cannot be choosen again.
+		tmp_helper = inett_address_helper[randArrayIndex];
+		inett_address_helper[randArrayIndex] = inett_address_helper[j];
+		inett_address_helper[j] = tmp_helper;
+	}
+	
+}
+
+void aodv_geo_table_test ()
+{
+	//create aodv_geo_table and call the proper tests with it
+	AodvT_Geo_Table* table = aodv_geo_table_create(InetC_Addr_Family_v4);
+	aodv_geo_table_entry_exists_test(table);
+	
+	table = aodv_geo_table_create(InetC_Addr_Family_v4);
+	aodv_geo_table_update_test(table);
+	
+	table = aodv_geo_table_create(InetC_Addr_Family_v4);
+	aodv_geo_table_entry_remove_test(table);
+	free(table);
 }
