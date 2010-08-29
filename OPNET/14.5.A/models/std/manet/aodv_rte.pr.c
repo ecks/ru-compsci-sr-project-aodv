@@ -4,7 +4,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 145A 30A modeler 7 4C77110D 4C77110D 1 j2 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 1e80 8                                                                                                                                                                                                                                                                                                                                                                                                               ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 145A 30A modeler 7 4C771370 4C771370 1 j2 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 1e80 8                                                                                                                                                                                                                                                                                                                                                                                                               ";
 #include <string.h>
 
 
@@ -32,6 +32,8 @@ const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 145A 30A modeler 7 4C77110D 4C77
 #include <math.h>
 #include <aodv_geo_table.h>
 #include <aodv_geo_support.h>
+// RC - 2010/08/26 - THIS IS FOR TESTING ONLY
+#include <aodv_geo_table_test.h>
 
 
 #define PACKET_ARRIVAL  		(invoke_mode == OPC_PROINV_INDIRECT)
@@ -4799,6 +4801,9 @@ aodv_rte (OP_SIM_CONTEXT_ARG_OPT)
 					{
 					aodv_rte_add_directly_connected_routes ();
 					}
+				
+				//RC 1020/08/26 - NOTE - only for testing.
+				aodv_geo_table_test();
 				}
 				FSM_PROFILE_SECTION_OUT (state0_enter_exec)
 
