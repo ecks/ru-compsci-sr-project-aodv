@@ -1,7 +1,7 @@
 /* ip_addr_v4.h: Header file for IP addressing scheme. */
 
 /****************************************/
-/*      Copyright (c) 1987-2008       */
+/*      Copyright (c) 1987-2009       */
 /*      by OPNET Technologies, Inc.     */
 /*       (A Delaware Corporation)       */
 /*    7255 Woodmont Av., Suite 250      */
@@ -323,6 +323,11 @@ DLLEXPORT void*					inet_address_addr_ptr_get (InetT_Address* addr_ptr);
 DLLEXPORT const void*				inet_address_addr_ptr_get_const (const InetT_Address* addr_ptr);
 DLLEXPORT PrgT_Compcode				inet_address_increment (InetT_Address* addr_ptr, InetT_Subnet_Mask smask);
 DLLEXPORT InetT_Address			inet_solicited_node_mcast_addr_create (const InetT_Address ipv6_address);
+
+PrgT_Compcode		inet_addr_str_parse_v4 (const char* addr_str, unsigned int* v4_addr_ptr);
+PrgT_Compcode		inet_addr_str_parse_v6 (const char* addr_str, int length, unsigned int** v6_addr_ptr);
+
+
 #define		inet_address_destroy(_addr)					if ((_addr).addr_family == InetC_Addr_Family_v6) prg_mem_free ((_addr).address.ipv6_addr_ptr);
 #define		inet_address_equal(_addr1, _addr2)			(inet_address_ptr_equal (&(_addr1), &(_addr2)))
 #define		inet_address_copy(_addr)					(((_addr).addr_family != InetC_Addr_Family_v6) ? (_addr) : inet_ipv6_address_ptr_copy (&(_addr)))
