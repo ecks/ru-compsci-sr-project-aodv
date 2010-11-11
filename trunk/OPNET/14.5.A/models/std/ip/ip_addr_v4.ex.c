@@ -1,5 +1,5 @@
 /****************************************/
-/*     Copyright (c) 1987-2008		*/
+/*     Copyright (c) 1987-2009		*/
 /*		by OPNET Technologies, Inc.		*/
 /*       (A Delaware Corporation)      	*/
 /*    7255 Woodmont Av., Suite 250     	*/
@@ -84,15 +84,14 @@ static char*				ipv6_address_print (char* addr_str, const Ipv6T_Address* addr_pt
 static PrgT_Boolean				ipv6_address_equal_until_length (const Ipv6T_Address* addr1_ptr, const Ipv6T_Address* addr2_ptr, int length);
 static int					ipv6_address_compare (const Ipv6T_Address* addr1_ptr, const Ipv6T_Address* addr2_ptr);
 static PrgT_Compcode		ipv6_address_increment (Ipv6T_Address* 	addr_ptr);
-static PrgT_Compcode		inet_addr_str_parse_v4 (const char* addr_str, unsigned int* v4_addr_ptr);
 static unsigned int*			inet_ipv6_addr_mem_alloc (void);
 static InetT_Ipv6_Addr_Field	ipv6_address_field_type_get (const char* field_str);
 static unsigned int*			inet_ipv6_addr_mem_alloc (void);
 static void					inet_ipv6_address_mask (const unsigned int* orig_addr_ptr, unsigned int* masked_addr_ptr, int prefix_length);
-static PrgT_Compcode		inet_addr_str_parse_v6 (const char* addr_str, int length, unsigned int** v6_addr_ptr);
 static void					ip_addr_error_abort (const char* str1, const char* str2);
 static void					ip_addr_error_recover (const char* str1, const char* str2);
-	
+
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -1509,7 +1508,7 @@ inet_address_create (const char* ip_addr_str, InetT_Addr_Family addr_family)
 	}
 
 
-static PrgT_Compcode
+PrgT_Compcode
 inet_addr_str_parse_v4 (const char* addr_str, unsigned int* v4_addr_ptr)
 	{
 	unsigned int		addr = 0;
@@ -1584,7 +1583,7 @@ inet_addr_str_parse_v4 (const char* addr_str, unsigned int* v4_addr_ptr)
 	FRET (PrgC_Compcode_Success);
 	}
 
-static PrgT_Compcode
+PrgT_Compcode
 inet_addr_str_parse_v6 (const char* addr_str, int length, unsigned int** v6_addr_ptr)
 	{
 	char				addr_str_copy [256];
@@ -2945,6 +2944,7 @@ inet_default_smask_from_class (IpT_Address_Class addr_class)
 		/* Class E is reserved (starting with 240.0.0.0).	*/
 		/* At least one user has configured this address.	*/
 		/* Consider these host addresses (/32).				*/	
+		case IPC_ADDRESS_CLASS_D:
 		case IPC_ADDRESS_CLASS_E:
 			{
 			snet_mask = (InetT_Subnet_Mask) 32;
