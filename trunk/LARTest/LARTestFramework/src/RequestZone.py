@@ -9,7 +9,7 @@ different ways o determinig if a
 RREQ should or shouldn't be 
 rebroadcast.
 
-Author: Remo Coco
+Author: Remo Cocco
 """
 
 class LARContainmentStrategy:
