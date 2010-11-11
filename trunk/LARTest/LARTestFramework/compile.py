@@ -20,8 +20,7 @@ global BUILD_DIR
 global SOURCE_DIR
 CWD = sys.path[0] + "/" # always the directory containing the script
 BUILD_DIR = CWD + "build/"
-#SOURCE_DIR = CWD + "src/"
-SOURCE_DIR = CWD + ""
+SOURCE_DIR = CWD + "src/"
 
 """
 DEPRECATED
