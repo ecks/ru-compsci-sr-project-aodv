@@ -36,3 +36,6 @@ Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* geo_table_ptr,
 										int 		     request_level,	
 										double	src_x,   double src_y,
 										double dest_x,   double dest_y);
+// VHRCMA	11/11/10
+void aodv_geo_LAR_update(int proc_id, double LAR_update_interval);
+

@@ -423,3 +423,34 @@ int aodv_geo_compute_expand_flooding_angle(
 	FRET(request_level);
 
 }
+
+// VHRCMA	11/11/10
+void aodv_geo_LAR_update(int proc_id, double LAR_update_interval)
+{
+	FIN(aodv_geo_LAR_update( <args> ));
+	
+	int node_id;
+	int x,y;
+
+	node_id = op_topo_parent(proc_id);
+	op_ima_obj_attr_get (node_id, "x position", &x);
+	op_ima_obj_attr_get (node_id, "y position", &y);
+	
+	
+	
+	// -1. Create a struct to save x,y, velocity, and time
+	// decalre data struct in aodv_geo_support.h
+	// 1. Get IP address
+	// 2. Convert IP address into string (char *): inet_address_print
+	// 4. Compute Velocity
+	// 5. Store: x,y, velocity, current time into global table using IP address as a key
+	// oms_data_def_entry_insert()
+	// oms_data_def_entry_access()
+
+	printf("Coordinates at time %.2f are (%d, %d)\n",op_sim_time(), x,y);
+	// Compute velocity and store it in the global database
+	
+	op_intrpt_schedule_self (op_sim_time () + LAR_update_interval, AODVC_LAR_UPDATE);
+	
+	FOUT;
+}
