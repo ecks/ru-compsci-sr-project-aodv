@@ -44,6 +44,10 @@ extern "C" {
 #define AODVC_HELLO_TIMER_EXPIRY		4
 #define AODVC_CONN_LOSS_TIMER			5
 
+// VHRCMA	11/11/10
+#define AODVC_LAR_UPDATE				6
+
+
 /* Constant to specify an infinte packet queue size	*/
 #define AODVC_INFINITE_PACKET_QUEUE		-1
 

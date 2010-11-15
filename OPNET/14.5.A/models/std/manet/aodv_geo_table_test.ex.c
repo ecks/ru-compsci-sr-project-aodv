@@ -121,6 +121,7 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
  * we also rely on the fact the exists was already tested, since it will be used to 
  * ensure that entries are properly removed.
  */
+#define _REMOVE_TESTS 2
 void aodv_geo_table_entry_remove_test(AodvT_Geo_Table* geo_table_ptr) {
 	int i, j;
 	InetT_Address_Helper	*inett_address_helper[_REMOVE_TESTS]; 
