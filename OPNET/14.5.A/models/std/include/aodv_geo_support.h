@@ -1,7 +1,12 @@
+//RCMKA 11/22/2010
+#ifndef _AODV_GEO_SUPPORT
+#define _AODV_GEO_SUPPORT
+
 #include <opnet.h>
 #include <aodv.h>
 #include <aodv_ptypes.h>
 #include <math.h>
+
 
 Boolean aodv_geo_rebroadcast(
 						double orig_x, double orig_y,		
@@ -38,4 +43,17 @@ Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* geo_table_ptr,
 										double dest_x,   double dest_y);
 // VHRCMA	11/11/10
 void aodv_geo_LAR_update(int proc_id, double LAR_update_interval);
+
+//MKA	11/15/10
+typedef struct LAR_Data
+{
+	int x;
+	int y;
+	double velocity;
+	double time;
+} LAR_Data;
+
+const char* LAR_OMS_CATEGORY = "LAR_DATA";
+
+#endif
 
