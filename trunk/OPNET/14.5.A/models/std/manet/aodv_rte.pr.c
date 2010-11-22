@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A op_runsim_dev 7 4CDC65EE 4CDC65EE 1 j2 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                         ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A op_runsim_dev 7 4CEAF0BA 4CEAF0BA 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                              ";
 #include <string.h>
 
 
@@ -28,6 +28,10 @@ const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A op_runsim_dev 7 4CDC65E
 /* Header Block */
 
 /* Includes	*/
+// RCMKA 11/22/2010
+#ifndef _AODV_RTE_H
+#define _AODV_RTE_H
+
 #include <ip_addr_v4.h>
 #include <ip_rte_support.h>
 #include <ip_rte_v4.h>
@@ -155,6 +159,7 @@ static Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* 	_geo_table_ptr,
 const double PI = 3.141592653589793238462643383279502884197169399375;
 const double MAX_ANGLE = 360;
 */
+#endif
 
 /* End of Header Block */
 
@@ -4298,7 +4303,7 @@ static void	aodv_rte_geo_init()
 	Objid				parent_id;
 	char				name[128];
 	double				x, y;
-	
+	double				LAR_update_start_time;
 	
 	
 	FIN (aodv_rte_geo_init());
@@ -4326,10 +4331,11 @@ static void	aodv_rte_geo_init()
 		
 	// VHRCMA	11/11/10
 	op_ima_obj_attr_get(aodv_parms_child_id, "LAR Update Interval", &LAR_update_interval);
+	op_ima_obj_attr_get(aodv_parms_child_id, "LAR Update Start Time", &LAR_update_start_time);
 	
 	// May need another attribute to specify when to start LAR updates
 	// Right now we start updates at 100 seconds, may want to change that
-	op_intrpt_schedule_self (100, AODVC_LAR_UPDATE);
+	op_intrpt_schedule_self (op_sim_time() + LAR_update_start_time, AODVC_LAR_UPDATE);
 	
 	//Store initial position
 	// You want to store the following information:
@@ -4344,9 +4350,6 @@ static void	aodv_rte_geo_init()
 	
 
 	FOUT;
-	
-	
-
 }
 
 //	========================================

@@ -3,6 +3,9 @@
 #include <aodv.h>
 #include <aodv_ptypes.h>
 #include <math.h>
+//MKA 11/21/10
+#include <aodv_geo_support.h>
+#include <ip_rte_support.h>
 
 const double PI = 3.141592653589793238462643383279502884197169399375;
 const double MAX_ANGLE = 360;
@@ -424,30 +427,117 @@ int aodv_geo_compute_expand_flooding_angle(
 
 }
 
+//MKA 11/21/10
+//{
+void get_node_ip(char ip_str[], int id)
+{
+	//Store this node's IP into ip_str.
+
+	IpT_Interface_Info	ifinfo;
+	IpT_Address			ip_addr;
+	InetT_Address		inet_addr;
+	
+	IpT_Rte_Module_Data* module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
+	op_ima_obj_attr_get (module_data_ptr->ip_parameters_objid, "Interface Information", &ifinfo);
+	op_ima_obj_attr_get (id, "Interface Information", &ifinfo);
+
+	ip_addr = ifinfo.network_address;
+	
+	printf("%d\n", ip_addr);
+	
+	inet_addr.addr_family = InetC_Addr_Family_v4;
+	inet_addr.address.ipv4_addr = ip_addr;
+	inet_address_print(ip_str, inet_addr);
+	printf("%s\n", ip_str);
+	
+}
+
+//should probably be inlined for efficiency.
+double aodv_geo_LAR_calc_velocity (int oldX, int oldY, int newX, int newY, int oldTime, int newTime)
+{
+	//use the distance formula to calculate the node's distance from its old location.
+	double deltaDistance = sqrt( pow(newY - oldY, 2) + pow(newX - oldX, 2) );
+	double deltaTime = newTime - oldTime;
+	return (deltaDistance/deltaTime);
+}
+
+void print_lar_data(LAR_Data* lar_data)
+{
+	printf("LAR DATA\n");
+	printf("--------\n");
+	printf("Position: (%d, %d)\n", lar_data->x, lar_data->y);
+	printf("Velocity: %d\n", lar_data->velocity);
+	printf("Time: %d\n", lar_data->time);
+}
+
+LAR_Data* new_LAR_Data(int x, int y)
+{
+	LAR_Data *lar_data; 
+	printf("Creating new LAR_Data\n");
+	
+	lar_data = op_prg_mem_alloc( sizeof(LAR_Data) );
+	lar_data->x = x;
+	lar_data->y = y;
+	lar_data->velocity = 0;
+	lar_data->time = op_sim_time();
+	return lar_data;
+}
+
+//}
+	
 // VHRCMA	11/11/10
+// TODO RC 11/22/2010 We need to ensure that this only runs when 
+// LAR is active, i.e it shouldn't running unless it's needed.
+// Maybe we can alter our interupt condition to include this.
 void aodv_geo_LAR_update(int proc_id, double LAR_update_interval)
 {
-	FIN(aodv_geo_LAR_update( <args> ));
 	
 	int node_id;
 	int x,y;
+	double velocity, time;
+	char				address[INETC_ADDR_STR_LEN]; 
+	void* data;
+	LAR_Data* lar_data;
+	
+	FIN (aodv_geo_LAR_update( <args> ));
 
 	node_id = op_topo_parent(proc_id);
 	op_ima_obj_attr_get (node_id, "x position", &x);
 	op_ima_obj_attr_get (node_id, "y position", &y);
 	
 	
-	
 	// -1. Create a struct to save x,y, velocity, and time
 	// decalre data struct in aodv_geo_support.h
+	
 	// 1. Get IP address
 	// 2. Convert IP address into string (char *): inet_address_print
-	// 4. Compute Velocity
-	// 5. Store: x,y, velocity, current time into global table using IP address as a key
+	// 3. Compute Velocity
+	// 4. Store: x,y, velocity, current time into global table using IP address as a key
 	// oms_data_def_entry_insert()
 	// oms_data_def_entry_access()
+	get_node_ip(address, node_id);
+	
+	data = oms_data_def_entry_access(LAR_OMS_CATEGORY, address);
+	if (data != OPC_NIL)
+	{
+		lar_data = (LAR_Data*) data;
+		//DEBUG
+		print_lar_data(lar_data);
+		time = op_sim_time();
+		velocity = aodv_geo_LAR_calc_velocity(lar_data->x, lar_data->y, x, y, lar_data->time, time);
+		lar_data->x = x;
+		lar_data->y = y;
+		lar_data->velocity = velocity;
+		lar_data->time = time;
+		
+	}
+	else // we haven't stored this data yet, we need to create it
+	{
+		lar_data = new_LAR_Data(x, y);
+		oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
+	}
 
-	printf("Coordinates at time %.2f are (%d, %d)\n",op_sim_time(), x,y);
+	printf("Coordinates at time %.2f for ip address %s are (%d, %d)\n",time, address, x, y);
 	// Compute velocity and store it in the global database
 	
 	op_intrpt_schedule_self (op_sim_time () + LAR_update_interval, AODVC_LAR_UPDATE);
