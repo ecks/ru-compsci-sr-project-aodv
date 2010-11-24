@@ -6,6 +6,7 @@
 #include <aodv.h>
 #include <aodv_ptypes.h>
 #include <math.h>
+#include <stdio.h>
 
 
 Boolean aodv_geo_rebroadcast(
@@ -44,16 +45,23 @@ Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* geo_table_ptr,
 // VHRCMA	11/11/10
 void aodv_geo_LAR_update(int proc_id, double LAR_update_interval);
 
-//MKA	11/15/10
+//MKA	11/23/10
 typedef struct LAR_Data
 {
-	int x;
-	int y;
+	double x;
+	double y;
 	double velocity;
 	double time;
 } LAR_Data;
 
-const char* LAR_OMS_CATEGORY = "LAR_DATA";
+//MKA 11/23/10
+static const char* LAR_OMS_CATEGORY = "LAR_DATA";
+
+#define NAME_ATTR_SIZE 128
+
+// MKA 11/23/10
+// Comment out the following define to turn off LAR debug printing.
+#define LAR_DEBUG
 
 #endif
 
