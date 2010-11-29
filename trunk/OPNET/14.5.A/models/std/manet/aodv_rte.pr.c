@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CF328CA 4CF328CA 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CF32F8D 4CF32F8D 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -4333,6 +4333,27 @@ aodv_rte_forward_request_delete (void* inet_addr_vptr, int req_id)
 
 
 
+
+
+// MKA 11/23/10
+// Create and return a new LAR_Data data structure initialized with the given coordinates.
+// and default velocity (0.0) and time (0.0).
+LAR_Data* new_LAR_Data(double x, double y)
+{
+	LAR_Data *lar_data; 
+
+#ifdef LAR_DEBUG
+	printf("\n==Creating new LAR_Data with default values and position (%f, %f)==\n", x, y);
+#endif
+	
+	lar_data = op_prg_mem_alloc( sizeof(LAR_Data) );
+	lar_data->x = x;
+	lar_data->y = y;
+	lar_data->velocity = 0;
+	lar_data->time = op_sim_time();
+	return lar_data;
+}
+
 // Purpose:		Initialize global GeoAODV parameters
 // In/Out:		NONE
 // Author:		VHMR 8/03/09
@@ -4344,6 +4365,14 @@ static void	aodv_rte_geo_init()
 	char				name[128];
 	double				x, y;
 	double				LAR_update_start_time;
+	
+	// MKA 11/28/10
+	// The following variables are used to initialize
+	// data for LAR updates.
+	LAR_Data			*lar_data;
+	int					num_interfaces;
+	int					ifnum;
+	char				address[INETC_ADDR_STR_LEN];
 	
 	
 	FIN (aodv_rte_geo_init());
@@ -4384,6 +4413,21 @@ static void	aodv_rte_geo_init()
 	// 3. velocity
 	
 	// Use function oms_data_insert
+	
+	
+	// MKA 11/28/10
+	// Create the initial entry in the global databse which will be updated at each LAR interrupt.
+	lar_data = new_LAR_Data(x, y);
+	num_interfaces = inet_rte_num_interfaces_get (module_data_ptr);
+	for (ifnum = 0; ifnum < num_interfaces; ifnum++)
+	{
+		//In case there are multiple interfaces at this node,
+		//create an entry for each one referencing the same data
+		//so that no matter which IP the data is pulled from, the data will
+		//be the same.
+		get_node_ip(address, module_data_ptr, ifnum);
+		oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
+	}
 	
 	// Create GeoTable
 	geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
@@ -4431,25 +4475,6 @@ void print_lar_data(LAR_Data *lar_data)
 	printf("Time:     \t%f\n", lar_data->time);
 }
 
-// MKA 11/23/10
-// Create and return a new LAR_Data data structure initialized with the given coordinates.
-// and default velocity (0.0) and time (0.0).
-LAR_Data* new_LAR_Data(double x, double y)
-{
-	LAR_Data *lar_data; 
-
-#ifdef LAR_DEBUG
-	printf("\n==Creating new LAR_Data with default values and position (%f, %f)==\n", x, y);
-#endif
-	
-	lar_data = op_prg_mem_alloc( sizeof(LAR_Data) );
-	lar_data->x = x;
-	lar_data->y = y;
-	lar_data->velocity = 0;
-	lar_data->time = op_sim_time();
-	return lar_data;
-}
-
 	
 // VHRCMA	11/11/10
 // TODO RC 11/22/2010 We need to ensure that this only runs when 
@@ -4457,6 +4482,8 @@ LAR_Data* new_LAR_Data(double x, double y)
 // Maybe we can alter our interupt condition to include this.
 //
 // MKA 11/23/10	Finished implementing interrupt.
+// NOTE: This function assumes that an entry exists in the global
+//		 database to update, and always pulls the data using IF0 as a key.
 
 static void 
 aodv_geo_LAR_update( int proc_id, double update_interval )
@@ -4467,7 +4494,6 @@ aodv_geo_LAR_update( int proc_id, double update_interval )
 	LAR_Data*	lar_data;				//The data stored in the database
 	double 		x,y, velocity, time;	//The node's current x, y, v, and t
 	char		address[INETC_ADDR_STR_LEN]; 	// The node's IP address.
-	int			ifnum;
 	
 	FIN (aodv_geo_LAR_update( <args> ));
 	
@@ -4500,21 +4526,8 @@ aodv_geo_LAR_update( int proc_id, double update_interval )
 	data = oms_data_def_entry_access(LAR_OMS_CATEGORY, address);
 	if (data == OPC_NIL)
 	{
-		// We haven't stored data for this node yet, so we need to create the entry
-		// in the database.
-		lar_data = new_LAR_Data(x, y);
-		oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
-		if (inet_rte_num_interfaces_get (module_data_ptr) > 1)
-		{
-			//This node has multiple interfaces, so add an entry for each address referencing 
-			//the same LAR_Data.
-			for (ifnum = 1; ifnum < inet_rte_num_interfaces_get (module_data_ptr); ifnum++)
-			{
-				get_node_ip(address, module_data_ptr, ifnum);
-				oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
-			}
-		}
-		
+		// We haven't stored data for this node!
+		aodv_rte_error ("No initial LAR_Data found in the global database!", OPC_NIL, OPC_NIL);		
 	}
 	else
 	{
@@ -4530,7 +4543,7 @@ aodv_geo_LAR_update( int proc_id, double update_interval )
 		velocity = aodv_geo_LAR_calc_velocity(lar_data->x, lar_data->y, x, y, lar_data->time, time);
 		lar_data->x = x;
 		lar_data->y = y;
-		lar_data->velocity = (velocity < 0 ? -velocity : velocity);	//store the magnitude of the velocity vector.
+		lar_data->velocity = (velocity < 0 ? -velocity : velocity);	//store only the magnitude of the velocity vector.
 		lar_data->time = time;
 	}
 
