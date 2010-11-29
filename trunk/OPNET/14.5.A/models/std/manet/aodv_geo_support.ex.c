@@ -433,27 +433,42 @@ void get_node_ip(char ip_str[])
 {
 	//Store this node's IP into ip_str.
 
-	IpT_Interface_Info	ifinfo;
-	IpT_Address			ip_addr;
+	IpT_Interface_Info*	ifinfo;
 	InetT_Address		inet_addr;
+	int					output_intf_index = 0;
 	
 	IpT_Rte_Module_Data* module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
-	op_ima_obj_attr_get (module_data_ptr->ip_parameters_objid, "Interface Information", &ifinfo);
-
-	ip_addr = ifinfo.network_address;
 	
-#ifdef LAR_DEBUG
-	printf("%d\n", ip_addr);
-#endif
-	
-	inet_addr.addr_family = InetC_Addr_Family_v4;
-	inet_addr.address.ipv4_addr = ip_addr;
+	//MKAVH	11/25/10
+	ifinfo = inet_rte_intf_tbl_access(module_data_ptr, output_intf_index);
+	inet_addr = inet_rte_intf_addr_get(ifinfo, InetC_Addr_Family_v4);
 	inet_address_print(ip_str, inet_addr);
 
 #ifdef LAR_DEBUG
 	printf("%s\n", ip_str);
 #endif
 	
+}
+
+void print_interface_addresses()
+{
+	IpT_Rte_Module_Data* module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
+	int num_interfaces = inet_rte_num_interfaces_get (module_data_ptr);
+	int i = 0;
+	IpT_Interface_Info* ith_intf_info_ptr;
+	char address[INETC_ADDR_STR_LEN];
+	InetT_Address inet_addr;
+	
+	inet_addr.addr_family = InetC_Addr_Family_v4;
+	printf("\n--Interfaces--\n------------\n");
+	for (i=0; i< num_interfaces; i++)
+	{
+		ith_intf_info_ptr = inet_rte_intf_tbl_access (module_data_ptr, i);
+		inet_addr.address.ipv4_addr = ith_intf_info_ptr->network_address;
+		inet_address_print(address, inet_addr);
+		printf("Interface %d address = %s\n", i, address);
+		
+	}
 }
 
 /* MKA 11/23/10 - See #define below.
@@ -518,10 +533,7 @@ void aodv_geo_LAR_update(int proc_id, double LAR_update_interval)
 	void*		data;					//Generic data storage pointer for when LAR_Data is retrieved from the database.
 	LAR_Data*	lar_data;				//The data stored in the database
 	double 		x,y, velocity, time;	//The node's current x, y, v, and t
-	char		name[NAME_ATTR_SIZE];	//The string buffer to store the node's name.
-	int			name_size;				//Needed for retrieving the name attribute.
-	
-//	char		address[INETC_ADDR_STR_LEN]; 
+	char		address[INETC_ADDR_STR_LEN]; 	// The node's IP address.
 	
 	FIN (aodv_geo_LAR_update( <args> ));
 	
@@ -533,8 +545,7 @@ void aodv_geo_LAR_update(int proc_id, double LAR_update_interval)
 	node_id = op_topo_parent(proc_id);
 	op_ima_obj_attr_get (node_id, "x position", &x);
 	op_ima_obj_attr_get (node_id, "y position", &y);
-	name_size = sizeof(name)/sizeof(char);
-	op_ima_obj_attr_get_str_sized(node_id, "name", &name_size, name);
+	get_node_ip(address);
 	
 	
 	
@@ -547,18 +558,16 @@ void aodv_geo_LAR_update(int proc_id, double LAR_update_interval)
 	// oms_data_def_entry_insert()
 	// oms_data_def_entry_access()
 	
-//	get_node_ip(address);
-	
 	
 	/* RETRIEVE DATA FROM DATABASE */
 	
-	data = oms_data_def_entry_access(LAR_OMS_CATEGORY, name);
+	data = oms_data_def_entry_access(LAR_OMS_CATEGORY, address);
 	if (data == OPC_NIL)
 	{
 		// We haven't stored data for this node yet, so we need to create the entry
 		// in the database.
 		lar_data = new_LAR_Data(x, y);
-		oms_data_def_entry_insert(LAR_OMS_CATEGORY, name, lar_data);
+		oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
 		
 	}
 	else
@@ -580,7 +589,7 @@ void aodv_geo_LAR_update(int proc_id, double LAR_update_interval)
 	}
 
 #ifdef LAR_DEBUG
-	printf("\n==Coordinates at time %f for node named %s are (%f, %f)==\n",time, name, x, y);
+	printf("\n==Coordinates at time %f for node with IP %s are (%f, %f)==\n",time, address, x, y);
 	printf("\nCommitted ");
 	print_lar_data(lar_data);
 #endif

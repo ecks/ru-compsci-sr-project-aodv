@@ -43,6 +43,8 @@ Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* geo_table_ptr,
 										double	src_x,   double src_y,
 										double dest_x,   double dest_y);
 // VHRCMA	11/11/10
+// This function will be called upon each LAR interrupt to update
+// each node's LAR_Data information.
 void aodv_geo_LAR_update(int proc_id, double LAR_update_interval);
 
 //MKA	11/23/10
@@ -54,9 +56,14 @@ typedef struct LAR_Data
 	double time;
 } LAR_Data;
 
-//MKA 11/23/10
+// MKA 11/23/10
+// This is the category in which the LAR_Data will
+// be stored in the global database.
 static const char* LAR_OMS_CATEGORY = "LAR_DATA";
 
+// MKA 11/23/10
+// This determines the size of the name attribute used
+// as a key to pull LAR_Data in the database.
 #define NAME_ATTR_SIZE 128
 
 // MKA 11/23/10
