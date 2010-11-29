@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A op_runsim_dev 7 4CEC73D0 4CEC73D0 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                              ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CF328CA 4CF328CA 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -47,18 +47,58 @@ const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A op_runsim_dev 7 4CEC73D
 #include <math.h>
 #include <aodv_geo_table.h>
 #include <aodv_geo_support.h>
-// RC - 2010/08/26 - THIS IS FOR TESTING ONLY
-//#include <aodv_geo_table_test.h>
 
 
 #define PACKET_ARRIVAL  		(invoke_mode == OPC_PROINV_INDIRECT)
 #define HELLO_TIMER_EXPIRY		((invoke_mode == OPC_PROINV_DIRECT) && (intrpt_type == OPC_INTRPT_SELF) && (intrpt_code == AODVC_HELLO_TIMER_EXPIRY))
 
+
+/* LAR Definitions */
+/* --------------- */
+
 // VHRCMA	11/11/10
 #define LAR_UPDATE				((invoke_mode == OPC_PROINV_DIRECT) && (intrpt_type == OPC_INTRPT_SELF) && (intrpt_code == AODVC_LAR_UPDATE))
 
+
+// VHRCMA	11/11/10
+// This function will be called upon each LAR interrupt to update
+// each node's LAR_Data information.
+static void aodv_geo_LAR_update(int, double);
+
+//MKA	11/23/10
+typedef struct LAR_Data
+{
+	double x;
+	double y;
+	double velocity;
+	double time;
+} LAR_Data;
+
+// MKA 11/23/10
+// This is the category in which the LAR_Data will
+// be stored in the global database.
+static const char* LAR_OMS_CATEGORY = "LAR_DATA";
+
+// MKA 11/25/10
+// Retrieve the current node's IP address on the given output interface and store it in ip_str.
+static void get_node_ip(char ip_str[], IpT_Rte_Module_Data* module_data, int output_intf_index);
+
+
+// MKA 11/23/10
+// For some reason, I can't declare the function as inline, so
+// the following macro allows us to perform velocity calculations inline.
+#define aodv_geo_LAR_calc_velocity(oldX, oldY, newX, newY, oldTime, newTime) sqrt(pow(newY - oldY, 2) + pow(newX - oldX, 2))/(newTime - oldTime)
+
+
+// MKA 11/23/10
+// Comment out the following define to turn off LAR debug printing.
+#define LAR_DEBUG
+
+/* ----------END LAR DEFINITIONS--------*/
+
 // MHAVH 11/11/08 - we need to define PI in order to convert from radians to degrees
 //#define PI						acos(-1)
+
 
 /* Traces	*/
 #define LTRACE_ACTIVE			(op_prg_odb_ltrace_active ("aodv_rte") || \
@@ -4349,6 +4389,164 @@ static void	aodv_rte_geo_init()
 	geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
 	
 
+	FOUT;
+}
+
+
+// MKA 11/25/10
+// Retrieve the current node's IP and store it in ip_str.
+static void get_node_ip(char ip_str[], IpT_Rte_Module_Data* module_data, int output_intf_index)
+{
+	//Store this node's IP into ip_str.
+
+	IpT_Interface_Info*	ifinfo;
+	InetT_Address		inet_addr;
+	
+	FIN (get_node_ip (<args>));
+	
+	//IpT_Rte_Module_Data* module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
+	
+	//MKAVH	11/25/10
+	ifinfo = inet_rte_intf_tbl_access(module_data, output_intf_index);
+	inet_addr = inet_rte_intf_addr_get(ifinfo, aodv_addressing_mode);
+	inet_address_print(ip_str, inet_addr);
+
+#ifdef LAR_DEBUG
+	printf("Retrieved IP: %s\n", ip_str);
+#endif
+	
+	FOUT;
+	
+}
+
+
+// MKA 11/23/10
+// Print the given LAR_Data to stdout.
+void print_lar_data(LAR_Data *lar_data)
+{
+	printf("LAR DATA\n");
+	printf("--------\n");
+	printf("Position: \t(%f, %f)\n", lar_data->x, lar_data->y);
+	printf("Velocity: \t%f\n", lar_data->velocity);
+	printf("Time:     \t%f\n", lar_data->time);
+}
+
+// MKA 11/23/10
+// Create and return a new LAR_Data data structure initialized with the given coordinates.
+// and default velocity (0.0) and time (0.0).
+LAR_Data* new_LAR_Data(double x, double y)
+{
+	LAR_Data *lar_data; 
+
+#ifdef LAR_DEBUG
+	printf("\n==Creating new LAR_Data with default values and position (%f, %f)==\n", x, y);
+#endif
+	
+	lar_data = op_prg_mem_alloc( sizeof(LAR_Data) );
+	lar_data->x = x;
+	lar_data->y = y;
+	lar_data->velocity = 0;
+	lar_data->time = op_sim_time();
+	return lar_data;
+}
+
+	
+// VHRCMA	11/11/10
+// TODO RC 11/22/2010 We need to ensure that this only runs when 
+// LAR is active, i.e it shouldn't running unless it's needed.
+// Maybe we can alter our interupt condition to include this.
+//
+// MKA 11/23/10	Finished implementing interrupt.
+
+static void 
+aodv_geo_LAR_update( int proc_id, double update_interval )
+{
+	
+	int 		node_id;				//This node's id.
+	void*		data;					//Generic data storage pointer for when LAR_Data is retrieved from the database.
+	LAR_Data*	lar_data;				//The data stored in the database
+	double 		x,y, velocity, time;	//The node's current x, y, v, and t
+	char		address[INETC_ADDR_STR_LEN]; 	// The node's IP address.
+	int			ifnum;
+	
+	FIN (aodv_geo_LAR_update( <args> ));
+	
+#ifdef LAR_DEBUG
+	printf("=========================LAR UPDATE=========================\n");
+#endif
+	
+	/* COLLECT ATTRIBUTES FROM NODE */
+	node_id = op_topo_parent(proc_id);
+	op_ima_obj_attr_get (node_id, "x position", &x);
+	op_ima_obj_attr_get (node_id, "y position", &y);
+
+	//the module_data_ptr should really be retrieved through the proc_id somehow...
+	get_node_ip(address, module_data_ptr, 0);
+	
+	
+	
+	// -1. Create a struct to save x,y, velocity, and time
+	// decalre data struct in aodv_geo_support.h
+	// 1. Get IP address
+	// 2. Convert IP address into string (char *): inet_address_print
+	// 3. Compute Velocity
+	// 4. Store: x,y, velocity, current time into global table using IP address as a key
+	// oms_data_def_entry_insert()
+	// oms_data_def_entry_access()
+	
+	
+	/* RETRIEVE DATA FROM DATABASE */
+	
+	data = oms_data_def_entry_access(LAR_OMS_CATEGORY, address);
+	if (data == OPC_NIL)
+	{
+		// We haven't stored data for this node yet, so we need to create the entry
+		// in the database.
+		lar_data = new_LAR_Data(x, y);
+		oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
+		if (inet_rte_num_interfaces_get (module_data_ptr) > 1)
+		{
+			//This node has multiple interfaces, so add an entry for each address referencing 
+			//the same LAR_Data.
+			for (ifnum = 1; ifnum < inet_rte_num_interfaces_get (module_data_ptr); ifnum++)
+			{
+				get_node_ip(address, module_data_ptr, ifnum);
+				oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
+			}
+		}
+		
+	}
+	else
+	{
+		//Previous data exists; alter it.
+	
+		lar_data = (LAR_Data*) data;
+	
+#ifdef LAR_DEBUG
+		print_lar_data(lar_data);
+#endif
+		
+		time = op_sim_time();
+		velocity = aodv_geo_LAR_calc_velocity(lar_data->x, lar_data->y, x, y, lar_data->time, time);
+		lar_data->x = x;
+		lar_data->y = y;
+		lar_data->velocity = (velocity < 0 ? -velocity : velocity);	//store the magnitude of the velocity vector.
+		lar_data->time = time;
+	}
+
+#ifdef LAR_DEBUG
+	printf("\n==Coordinates at time %f for node with IP %s are (%f, %f)==\n",time, address, x, y);
+	printf("\nCommitted ");
+	print_lar_data(lar_data);
+#endif
+
+	//Schedule the next interrupt.
+	op_intrpt_schedule_self (op_sim_time () + update_interval, AODVC_LAR_UPDATE);
+
+#ifdef LAR_DEBUG
+	printf("============================================================\n");
+#endif
+	
 	FOUT;
 }
 
