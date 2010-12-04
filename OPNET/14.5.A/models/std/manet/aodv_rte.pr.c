@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CF88841 4CF88841 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CF979B9 4CF979B9 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -1114,6 +1114,10 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	// 11/11/08 - added values of the current x and y positions
 	double 					curr_x, prev_x;
 	double 					curr_y, prev_y;
+	
+	// MKA 12/02/10 - Using LAR
+	LAR_Data*				lar_data;
+	double					destX, destY;
 
 	// MHAVH
 	
@@ -1660,16 +1664,30 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			prev_y = -1;
 	}
 	
+	// MKA 12/02/10 - Get the destination's LAR information (so that we can retrieve velocity).
+	inet_address_print (tmp_ip_addr, rreq_option_ptr->dest_addr);
+	printf("Dst IP = %s\n", tmp_ip_addr);
+	lar_data = aodv_geo_LAR_retrieve_data(tmp_ip_addr);
+	printf("Dst Location = (%.2f, %.2f), Dst velocity = %.2f\n", lar_data->x, lar_data->y, lar_data->velocity);
+	
+	destX = (lar_data != OPC_NIL? lar_data->x : rreq_option_ptr->dst_x);
+	destY = (lar_data != OPC_NIL? lar_data->y : rreq_option_ptr->dst_y);
 	
 	// Check if intermediate node has to rebraodcast this RREQ based on additional geoAODV or LAR conditions
 	if (aodv_geo_rebroadcast( (double) rreq_option_ptr->src_x, (double) rreq_option_ptr->src_y,	
 								prev_x,  prev_y, 
 								curr_x,  curr_y, 		
-								rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,	
+								// MKA 12/02/10
+								//Using LAR data since the coordinates in the packet
+								//are always (-1, -1) for some reason.
+								//rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,	
+								destX, destY,
 								(double) ((rreq_option_ptr->request_level+1) * 90),
-								geo_routing_type) 
-		== OPC_FALSE)
+								geo_routing_type,
+								(lar_data != OPC_NIL ? lar_data->velocity : 0)
+							) == OPC_FALSE)
 	{
+		printf("AODV GEO REBROADCAST = FALSE; DISCARDING PACKET.");
 		op_pk_destroy (aodv_pkptr);
 		manet_rte_ip_pkt_destroy (ip_pkptr);
 		FOUT;
@@ -4350,14 +4368,16 @@ static void	aodv_rte_geo_init()
 	op_ima_obj_attr_get(aodv_parms_child_id, "LAR Update Interval", &LAR_update_interval);
 	op_ima_obj_attr_get(aodv_parms_child_id, "LAR Update Start Time", &LAR_update_start_time);
 	
-	// May need another attribute to specify when to start LAR updates
-	// Right now we start updates at 100 seconds, may want to change that
-	op_intrpt_schedule_self (op_sim_time() + LAR_update_start_time, AODVC_LAR_UPDATE);
 	
 	// MKA 12/03/10
 	// Initialize LAR
-	aodv_geo_LAR_init( module_data_ptr, aodv_addressing_mode, x, y );
-	
+	if (geo_routing_type == AODV_TYPE_LAR_DISTANCE || 
+		geo_routing_type == AODV_TYPE_LAR_ZONE)
+	{
+		op_intrpt_schedule_self (op_sim_time() + LAR_update_start_time, AODVC_LAR_UPDATE);
+		
+		aodv_geo_LAR_init( module_data_ptr, aodv_addressing_mode, x, y );
+	}
 	// Create GeoTable
 	geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
 	
