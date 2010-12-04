@@ -51,7 +51,7 @@ Boolean	aodv_rte_rreq_within_area(double computed_angle, int request_level)
 	// on either side of the line that equally divides floodingn angle
 	if(computed_angle <= (request_level+1) * 45.0)
 	{
-	    FRET(OPC_TRUE);
+	    FRET(OPC_TRUE)
 	}
 
 	FRET(OPC_FALSE);
@@ -195,7 +195,8 @@ Boolean aodv_geo_rebroadcast(
 						double curr_x, double curr_y, 		// Coordinates of the node that received RREQ
 						double dest_x, double dest_y,		// Coordinates of the destination node
 						double flooding_angle,				// Angle in degrees of the flooding angle
-						int	   aodv_type)					// Type of AODV being used
+						int	   aodv_type, 					// Type of AODV being used
+						double dest_velocity)				// The calculated velocity of the destination node (LAR)
 {
 	double angle;
 	
@@ -312,8 +313,8 @@ Boolean aodv_geo_rebroadcast(
 			FRET(OPC_TRUE);
 		
 		case AODV_TYPE_LAR_ZONE:
-			// NOT implemented yet
 			// LAR TODO!
+			FRET(aodv_geo_LAR_within_request_zone(orig_x, orig_y, curr_x, curr_y, dest_x, dest_y, dest_velocity));
 		case AODV_TYPE_REGULAR:		
 			FRET(OPC_TRUE);
 		}
@@ -624,3 +625,82 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family 
 	FOUT;
 }
 
+// MKA 12/02/10
+// This method returns whether or not the current node is within the 
+// request zone. The request zone will be as specified by LAR Scheme 1 (with Dan Urbano's alterations
+// to take into account a source parallel to the destination).
+Boolean aodv_geo_LAR_within_request_zone(double src_x, double src_y, double curr_x, double curr_y, double dest_x, double dest_y, double radius)
+{
+	Point2D ll, ul, ur, lr;
+	Point2D currentLocation;
+	
+	Rectangle requestZone;
+	
+	Boolean contained;
+	
+	FIN (aodv_geo_LAR_within_request_zone( <args> ));
+	
+	currentLocation.x = curr_x;			currentLocation.y = curr_y;
+	
+
+	ll.x = min(src_x, dest_x - radius); ll.y = min(src_y, dest_y - radius);
+	ul.x = ll.x; 						ul.y = max(src_y, dest_y + radius);
+	ur.x = max(src_x, dest_x + radius); ur.y = ul.y;
+	lr.x = ur.x;						lr.y = ll.y;
+	
+	requestZone.lower_left = ll;
+	requestZone.upper_left = ul;
+	requestZone.upper_right = ur;
+	requestZone.lower_right = lr;
+	
+	contained = aodv_geo_LAR_is_point_contained(&currentLocation, &requestZone);
+	
+#ifdef LAR_DEBUG
+	printf("=> aodv_geo_LAR_within_request_zone: Current node's coordinates: (%.2f, %.2f)\n", currentLocation.x, currentLocation.y);
+	printf("=> aodv_geo_LAR_within_request_zone: Src: (%.2f, %.2f) Dest: (%.2f, %.2f) Dest velocity = %.2f\n", src_x, src_y, dest_x, dest_y, radius);
+	printf("=> aodv_geo_LAR_within_request_zone: Calculated request zone: \n");
+	printf("\t (%.2f, %.2f) \t	(%.2f, %.2f)\n", ul.x, ul.y, ur.x, ur.y);
+	printf("\t (%.2f, %.2f) \t	(%.2f, %.2f)\n", ll.x, ll.y, lr.x, lr.y);
+	printf("=> aodv_geo_LAR_within_request_zone: Contained = %s\n", contained == OPC_TRUE ? "True" : "False");
+#endif
+	
+	FRET ( contained );	
+}
+
+// MKA 12/02/10
+// Simple helper function that determines whether or not the given Point
+// is within the bounds of the provided Rectangle.
+Boolean aodv_geo_LAR_is_point_contained(Point2D *location, Rectangle *zone)
+{
+	FIN (aodv_geo_LAR_is_point_contained( <args> ));
+	
+	// assumes that all sides of the 
+    // rectangle are parallel to their respective axes
+
+    // left of rectangle
+    if (location->x < zone->upper_left.x)
+            FRET ( OPC_FALSE );
+    
+	// above the rectangle
+    if (location->y > zone->upper_left.y)
+            FRET ( OPC_FALSE );
+
+    // right of the rectangle
+    if (location->x > zone->upper_right.x)
+            FRET ( OPC_FALSE );
+
+    // below rectangle
+    if (location->y < zone->lower_right.y)
+            FRET ( OPC_FALSE );
+
+    // Otherwise, it's in the rectangle.
+	FRET (OPC_TRUE);
+	
+}
+
+// MKA 12/02/10
+// Retrieve LAR_Data from the global database using the given IP.
+LAR_Data* aodv_geo_LAR_retrieve_data(char* ip)
+{
+	return (LAR_Data*) oms_data_def_entry_access(LAR_OMS_CATEGORY, ip);
+}

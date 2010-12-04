@@ -16,7 +16,8 @@ Boolean aodv_geo_rebroadcast(
 						double curr_x, double curr_y, 		
 						double dest_x, double dest_y,		
 						double flooding_angle,				
-						int	   aodv_type);
+						int	   aodv_type,
+						double dest_velocity);	//MKA 12/02/10 - Needed for LAR.
 
 
 int aodv_geo_compute_expand_flooding_angle( 
@@ -90,6 +91,38 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data*, InetT_Addr_Family , int , int );
 // MKA 11/23/10
 // Comment out the following define to turn off LAR debug printing.
 #define LAR_DEBUG
+
+// MKA 12/02/10
+// This method returns whether or not the current node is within the 
+// request zone. The request zone will be as specified by LAR Scheme 1 (with Dan Urbano's alterations
+// to take into account a source parallel to the destination).
+Boolean aodv_geo_LAR_within_request_zone(double src_x, double src_y, double curr_x, double curr_y, double dest_x, double dest_y, double radius);
+
+typedef struct Point2D
+{
+	double x;
+	double y;
+} Point2D;
+
+
+typedef struct Rectangle
+{
+	Point2D lower_left;
+	Point2D upper_left;
+	Point2D upper_right;
+	Point2D lower_right;
+	
+} Rectangle;
+
+// MKA 12/02/10
+// Simple helper function that determines whether or not the given Point
+// is within the bounds of the provided Rectangle.
+Boolean aodv_geo_LAR_is_point_contained(Point2D *location, Rectangle *zone);
+
+// MKA 12/02/10
+// Retrieve LAR_Data from the global database using the given IP.
+LAR_Data* aodv_geo_LAR_retrieve_data(char* ip);
+
 
 /* ------------------- */
 /* END LAR DEFINITIONS */
