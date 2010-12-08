@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CF979B9 4CF979B9 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4CFF1A79 4CFF1A79 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -1670,16 +1670,17 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	lar_data = aodv_geo_LAR_retrieve_data(tmp_ip_addr);
 	printf("Dst Location = (%.2f, %.2f), Dst velocity = %.2f\n", lar_data->x, lar_data->y, lar_data->velocity);
 	
-	destX = (lar_data != OPC_NIL? lar_data->x : rreq_option_ptr->dst_x);
-	destY = (lar_data != OPC_NIL? lar_data->y : rreq_option_ptr->dst_y);
+//	destX = (lar_data != OPC_NIL? lar_data->x : rreq_option_ptr->dst_x);
+//	destY = (lar_data != OPC_NIL? lar_data->y : rreq_option_ptr->dst_y);
+	
+	destX = rreq_option_ptr->dst_x;
+	destY = rreq_option_ptr->dst_y;
 	
 	// Check if intermediate node has to rebraodcast this RREQ based on additional geoAODV or LAR conditions
 	if (aodv_geo_rebroadcast( (double) rreq_option_ptr->src_x, (double) rreq_option_ptr->src_y,	
 								prev_x,  prev_y, 
 								curr_x,  curr_y, 		
 								// MKA 12/02/10
-								//Using LAR data since the coordinates in the packet
-								//are always (-1, -1) for some reason.
 								//rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,	
 								destX, destY,
 								(double) ((rreq_option_ptr->request_level+1) * 90),
