@@ -366,6 +366,13 @@ int aodv_geo_compute_expand_flooding_angle(
 	
 	switch(aodv_type)
 		{
+		
+		case AODV_TYPE_LAR_DISTANCE:
+		case AODV_TYPE_LAR_ZONE:
+		// LAR TODO
+			// MKA 12/08/10 - Both LAR Schemes can use the same code as GEO_ROTATE_01.
+			//					But if the request_level > 1 (ie the first attempt failed)...
+			//						should be flood or try again?
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
@@ -415,10 +422,7 @@ int aodv_geo_compute_expand_flooding_angle(
 				*dst_y = geo_entry_ptr->dst_y;
 			}
 			break;
-		
-		
-		case AODV_TYPE_LAR_DISTANCE:
-		case AODV_TYPE_LAR_ZONE:
+			
 		case AODV_TYPE_REGULAR:
 		default:
 			// do not use or expland the flooding angle based on neightbor locations

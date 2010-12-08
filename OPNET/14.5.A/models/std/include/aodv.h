@@ -46,9 +46,6 @@ extern "C" {
 // VHRCMADU 11/15/10
 #define AODVC_LAR_UPDATE				6
 
-// VHRCMA	11/11/10
-#define AODVC_LAR_UPDATE				6
-
 
 /* Constant to specify an infinte packet queue size	*/
 #define AODVC_INFINITE_PACKET_QUEUE		-1
