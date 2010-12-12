@@ -91,6 +91,7 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data*, InetT_Addr_Family , double , doubl
 // MKA 11/23/10
 // Comment out the following define to turn off LAR debug printing.
 #define LAR_DEBUG
+//#define LAR_UPDATE_DEBUG
 
 // MKA 12/02/10
 // This method returns whether or not the current node is within the 

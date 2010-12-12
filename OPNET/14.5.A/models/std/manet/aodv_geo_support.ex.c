@@ -457,7 +457,7 @@ void get_node_ip(char ip_str[], IpT_Rte_Module_Data* module_data, int output_int
 	inet_addr = inet_rte_intf_addr_get(ifinfo, aodv_addressing_mode);
 	inet_address_print(ip_str, inet_addr);
 
-#ifdef LAR_DEBUG
+#if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
 	printf("Retrieved IP: %s\n", ip_str);
 #endif
 	
@@ -499,7 +499,7 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 	
 	FIN (aodv_geo_LAR_update( <args> ));
 	
-#ifdef LAR_DEBUG
+#if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
 	printf("=========================LAR UPDATE=========================\n");
 #endif
 	
@@ -539,7 +539,7 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 	
 		lar_data = (LAR_Data*) data;
 	
-#ifdef LAR_DEBUG
+#if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
 		print_lar_data(lar_data);
 #endif
 		
@@ -551,7 +551,7 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 		lar_data->time = time;
 	}
 
-#ifdef LAR_DEBUG
+#if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
 	printf("\n==Coordinates at time %f for node with IP %s are (%f, %f)==\n",time, address, x, y);
 	printf("\nCommitted ");
 	print_lar_data(lar_data);
@@ -560,8 +560,8 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 	//Schedule the next interrupt.
 	op_intrpt_schedule_self (op_sim_time () + update_interval, AODVC_LAR_UPDATE);
 
-#ifdef LAR_DEBUG
-	printf("============================================================\n");
+#if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
+	printf("============================================================\n\n");
 #endif
 	
 	FOUT;
