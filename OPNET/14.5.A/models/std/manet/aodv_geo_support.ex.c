@@ -356,6 +356,7 @@ int aodv_geo_compute_expand_flooding_angle(
 {
 	PrgT_List* 			neighbor_list;
 	AodvT_Geo_Entry* 	geo_entry_ptr;
+	Boolean				entry_exists;			
 
 	FIN (aodv_geo_rreqsend( <args> ));
 
@@ -363,23 +364,23 @@ int aodv_geo_compute_expand_flooding_angle(
 	// default destination coordinates and flood angle is brodacast angle.
 	*dst_x = DEFAULT_X;
 	*dst_y = DEFAULT_Y;
+	entry_exists = aodv_geo_table_entry_exists(geo_table_ptr, dest_addr);
 	
 	switch(aodv_type)
 		{
 		
 		case AODV_TYPE_LAR_DISTANCE:
 		case AODV_TYPE_LAR_ZONE:
-		// LAR TODO
-			// MKA 12/08/10 - Both LAR Schemes can use the same code as GEO_ROTATE_01.
-			//					But if the request_level > 1 (ie the first attempt failed)...
-			//						should be flood or try again?
+			// LAR TODO
+			// MKA 12/12/10
+			
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
 		case AODV_TYPE_GEO_ROTATE_01:
 		
 			// handle via an outside function creating RREQ with Geo Information
-			if(aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
+			if(entry_exists == OPC_FALSE)
 			{
 				// Destination is not in geoTable ==> BROADCAST)
 				request_level = BROADCAST_REQUEST_LEVEL;
@@ -588,7 +589,7 @@ LAR_Data* new_LAR_Data(double x, double y)
 // MKA 12/02/10
 // This function performs initializations for LAR, including inserting the initial
 // LAR_Data entries for the global database.
-void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family address_mode, int x, int y )
+void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family address_mode, double x, double y )
 {
 	
 	// MKA 11/28/10
