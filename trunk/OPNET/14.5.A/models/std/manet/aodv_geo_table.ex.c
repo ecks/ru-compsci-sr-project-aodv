@@ -70,7 +70,10 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 										double dst_x, double dst_y)
 	{
 	AodvT_Geo_Entry*			geo_entry_ptr;
+	//only used for debugging
+	#ifdef GEO_AODV_TABLE_DEBUG
 	char						addr_str [INETC_ADDR_STR_LEN];
+	#endif
 	
 	
 	/** Inserts a new geo entry into the originating geo table	**/
@@ -78,11 +81,15 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 	
 	
 	// Print dest address for debugging
+	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, dst_address);
+	#endif
 	
 	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address))
 	{
+		#ifdef GEO_AODV_TABLE_DEBUG
 		printf("^^^^^^^^^^^^^^^^Entry for %s Exists. Insert is omitted!!!\n",addr_str);
+		#endif
 		
 		// May want to add code to overwrite existing value
 		// ???	
@@ -97,17 +104,16 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 		geo_entry_ptr->dst_y = dst_y;
 		
 		/* Insert this new request into the request table	*/
+		#ifdef GEO_AODV_TABLE_DEBUG
 		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d\n", addr_str, (int) &dst_address);
+		#endif
 		inet_addr_hash_table_item_insert(geo_table_ptr->geo_table, &dst_address, geo_entry_ptr, PRGC_NIL);
 //		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table,  &(dst_address.address.ipv4_addr), 
 //										geo_entry_ptr, PRGC_NIL);
 	}
 	
-
-			
-	
 	FOUT;
-	}
+}
 
 
 // Purpose: Overwrites an entry in the GeoTable if exist
@@ -169,29 +175,40 @@ AodvT_Geo_Entry*
 aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove)
 {
 	AodvT_Geo_Entry*	geo_entry_ptr = OPC_NIL;
+	//only used for debugging
+	#ifdef GEO_AODV_TABLE_DEBUG 
 	char				addr_str [INETC_ADDR_STR_LEN];
+	#endif
 	
 	/** Checks if a specific dst_address exists	**/
 	/** in the route request table				**/
 	FIN (aodv_geo_table_entry_get (<args>));
 	
+	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, dst_address);
+	#endif
 	
 	if (remove)
 		{
+		#ifdef GEO_AODV_TABLE_DEBUG
 		printf("^^^^^^^^^^^^^^^^REMOVING Dest %s with key %d\n", addr_str, (int) &dst_address);
+		#endif
 		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
 		// prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, (void *) &dst_address);
 		}
 	else
 		{
+		#ifdef GEO_AODV_TABLE_DEBUG
 		printf("^^^^^^^^^^^^^^^^GETTING Dest %s with key %d\n", addr_str, (int) &dst_address);
+		#endif
 		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
 		//prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
 		}
 
+	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, geo_entry_ptr->dst_address);
 	printf("^^^^^^^^^^^^^^^^OBTAINED Dest %s \n", addr_str);
+	#endif
 	FRET (geo_entry_ptr);
 }
 
@@ -199,14 +216,19 @@ Compcode
 aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
 	{
 	AodvT_Geo_Entry*	geo_entry_ptr;
+	//only used for debugging
+	#ifdef GEO_AODV_TABLE_DEBUG
 	char				addr_str [INETC_ADDR_STR_LEN];
+	#endif
 	
 	/** Deletes all entries that have the target address	**/
 	FIN (aodv_geo_table_entry_delete (<args>));
 	
 	// Print dest address for debugging
+	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, dst_address);	
 	printf("^^^^^^^^^^^^^^^^Deleting Dest %s with key %d\n", addr_str, (int) &dst_address);
+	#endif
 	
 	geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_remove(geo_table_ptr->geo_table, &dst_address);
 	// prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, 	(void *) &dst_address);
@@ -224,7 +246,7 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 
 void
 aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr)
-	{
+{
 	/** Frees the memory associated with the	**/
 	/** geo table entry						**/
 	FIN (aodv_geo_table_entry_mem_free (<args>));
@@ -236,7 +258,7 @@ aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr)
 	op_prg_mem_free (geo_entry_ptr);
 	
 	FOUT;
-	} 
+} 
 
 
 /*** Internally callable function ***/
