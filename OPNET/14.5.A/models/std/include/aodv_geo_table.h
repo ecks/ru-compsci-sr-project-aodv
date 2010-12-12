@@ -12,3 +12,10 @@ void			 aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr);
 
 static AodvT_Geo_Entry* aodv_geo_table_entry_mem_alloc (void);
 
+// RCMK 2010/12/12
+// Added #define for debugging, commenting this line will stop all debug statements
+// NOTE: all debug statements should be surrounded by ...
+// #ifdef GEO_AODV_TABLE_DEBUG
+// debug statements
+// #endif
+//#define GEO_AODV_TABLE_DEBUG
