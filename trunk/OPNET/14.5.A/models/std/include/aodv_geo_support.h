@@ -79,7 +79,7 @@ static void get_node_ip(char*, IpT_Rte_Module_Data*, int);
 
 // MKA 12/02/10
 // Initialize LAR, including inserting the initial LAR_Data entry into the database.
-void aodv_geo_LAR_init( IpT_Rte_Module_Data*, InetT_Addr_Family , int , int );
+void aodv_geo_LAR_init( IpT_Rte_Module_Data*, InetT_Addr_Family , double , double );
 
 
 // MKA 11/23/10
