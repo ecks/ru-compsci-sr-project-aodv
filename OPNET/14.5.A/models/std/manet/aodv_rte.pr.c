@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A op_runsim_dev 7 4D053B82 4D053B82 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                              ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D16542D 4D16542D 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -1668,10 +1668,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	inet_address_print (tmp_ip_addr, rreq_option_ptr->dest_addr);
 	printf("Dst IP = %s\n", tmp_ip_addr);
 	lar_data = aodv_geo_LAR_retrieve_data(tmp_ip_addr);
-	printf("Dst Location = (%.2f, %.2f), Dst velocity = %.2f\n", lar_data->x, lar_data->y, lar_data->velocity);
-	
-//	destX = (lar_data != OPC_NIL? lar_data->x : rreq_option_ptr->dst_x);
-//	destY = (lar_data != OPC_NIL? lar_data->y : rreq_option_ptr->dst_y);
+	if (lar_data != OPC_NIL)
+		printf("Dst Location = (%.2f, %.2f), Dst velocity = %.2f\n", lar_data->x, lar_data->y, lar_data->velocity);
 	
 	destX = rreq_option_ptr->dst_x;
 	destY = rreq_option_ptr->dst_y;

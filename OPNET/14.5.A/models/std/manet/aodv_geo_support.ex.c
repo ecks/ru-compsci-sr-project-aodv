@@ -323,6 +323,7 @@ Boolean aodv_geo_rebroadcast(
 }
 
 
+
 // Purpose:	Given positions of the nodes, flooding angle, and aodv type
 //				determine if the current node should rebroadcast RREQ or not
 // IN:			orig_x, orig_y -- position of the node that originated the RREQ
@@ -351,7 +352,7 @@ int aodv_geo_compute_expand_flooding_angle(
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
-			double*								dst_x, //&dst_x
+			double*							dst_x, //&dst_x
 			double* 							dst_y)	//&dst_y		
 {
 	PrgT_List* 			neighbor_list;
@@ -373,6 +374,24 @@ int aodv_geo_compute_expand_flooding_angle(
 		case AODV_TYPE_LAR_ZONE:
 			// LAR TODO
 			// MKA 12/12/10
+			// Get Destination's info
+			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
+		
+			if (geo_entry_ptr != OPC_NIL && entry_exists)
+			{
+				// Set destination coordinates
+				*dst_x = geo_entry_ptr->dst_x;
+				*dst_y = geo_entry_ptr->dst_y;
+			}
+		
+			// Initial LAR request failed revert to regular AODV
+			if (request_level != INITIAL_REQUEST_LEVEL)
+			{
+				request_level = BROADCAST_REQUEST_LEVEL;
+			}
+			
+			break;
+
 			
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
@@ -391,7 +410,7 @@ int aodv_geo_compute_expand_flooding_angle(
 				// RJ_VH 5/20/10
 				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
 				// unless there are no neighboring nodes within that area
-				if (aodv_type == AODV_TYPE_GEO_ROTATE_01 && request_level == 0)
+				if (aodv_type == AODV_TYPE_GEO_ROTATE_01 && request_level == INITIAL_REQUEST_LEVEL)
 				{
 					// This is the initial Route discover phase. First time request level is set to 180 
 					request_level = 1; // initially flooding angle = 180 degrees
@@ -496,7 +515,7 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 	double 		x,y, velocity, time;	//The node's current x, y, v, and t
 	char		address[INETC_ADDR_STR_LEN]; 	// The node's IP address.
 	IpT_Rte_Module_Data* module_data_ptr;		// The module data to use.
-	
+
 	FIN (aodv_geo_LAR_update( <args> ));
 	
 #if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
@@ -511,8 +530,6 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 	// the module_data_ptr should really be retrieved through the proc_id somehow...
 	module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
 	get_node_ip(address, module_data_ptr, 0);
-	
-	
 	
 	// -1. Create a struct to save x,y, velocity, and time
 	// decalre data struct in aodv_geo_support.h
@@ -709,3 +726,17 @@ LAR_Data* aodv_geo_LAR_retrieve_data(char* ip)
 {
 	return (LAR_Data*) oms_data_def_entry_access(LAR_OMS_CATEGORY, ip);
 }
+
+
+
+// ====================
+// Purpose:	Given positions of the nodes, flooding angle, and aodv type
+//				determine if the current node should rebroadcast RREQ or not
+// IN:			orig_x, orig_y -- position of the node that originated the RREQ
+//				prev_x, prev_y -- position of the node where the RREQ was received from
+//				curr_x, curr_y -- position of the node that received the RREQ
+//				dest_x, dest_y -- position of the destination node
+//				flooding_angle -- acceptable angle to forward the RREQ
+//				aodv_type	   -- type of aodv being used
+// Out:		TRUE if the current node should rebroadcase the RREQ
+//				FALSE if the RREQ should be destroyed
