@@ -189,6 +189,17 @@ aodv_geo_LAR_distance(double start_x, double start_y,
 
 
 
+
+// Purpose:	Given positions of the nodes, flooding angle, and aodv type
+//				determine if the current node should rebroadcast RREQ or not
+// IN:			orig_x, orig_y -- position of the node that originated the RREQ
+//				prev_x, prev_y -- position of the node where the RREQ was received from
+//				curr_x, curr_y -- position of the node that received the RREQ
+//				dest_x, dest_y -- position of the destination node
+//				flooding_angle -- acceptable angle to forward the RREQ
+//				aodv_type	   -- type of aodv being used
+// Out:		TRUE if the current node should rebroadcase the RREQ
+//				FALSE if the RREQ should be destroyed
 Boolean aodv_geo_rebroadcast(
 						double orig_x, double orig_y,		// Coordinates of the node that originated RREQ
 						double prev_x, double prev_y,		// Coordinates of the node that send RREQ
@@ -201,6 +212,19 @@ Boolean aodv_geo_rebroadcast(
 	double angle;
 	
 	FIN (aodv_geo_rebroadcast( <args> ));
+	
+	//MKA 12/26/10
+	//Since dest_x and dest_y are -1, -1 by default when destination coordinates are unknown and -1, -1 is a valid
+	//coordinate, this check is necessary to make sure we aren't just performing the initial flooding like regular AODV.
+	
+	if (flooding_angle >= 360.0)
+	{
+		//This takes care of regular AODV too since flooding_angle will always be 360 for regular AODV
+		//when it is computed in aodv_geo_compute_expand_flooding_angle.
+		FRET (OPC_TRUE);
+	}
+	
+	//If we're not in broadcast mode, we can do what each type of AODV would normally do.
 	
 	switch(aodv_type)
 	{
@@ -235,6 +259,7 @@ Boolean aodv_geo_rebroadcast(
 				
 				
 				// Use functions within the area if possible
+				// Since the angle formed 
 				if (angle > flooding_angle)
 				{
 					FRET(OPC_FALSE);
@@ -324,17 +349,6 @@ Boolean aodv_geo_rebroadcast(
 
 
 
-// Purpose:	Given positions of the nodes, flooding angle, and aodv type
-//				determine if the current node should rebroadcast RREQ or not
-// IN:			orig_x, orig_y -- position of the node that originated the RREQ
-//				prev_x, prev_y -- position of the node where the RREQ was received from
-//				curr_x, curr_y -- position of the node that received the RREQ
-//				dest_x, dest_y -- position of the destination node
-//				flooding_angle -- acceptable angle to forward the RREQ
-//				aodv_type	   -- type of aodv being used
-// Out:		TRUE if the current node should rebroadcase the RREQ
-//				FALSE if the RREQ should be destroyed
-
 // Purpose:	Decide to change the flooding angle based on geo table information of
 //				neighboring nodes
 // IN:			orig_x, orig_y -- position of the node that originated the RREQ
@@ -352,7 +366,7 @@ int aodv_geo_compute_expand_flooding_angle(
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
-			double*							dst_x, //&dst_x
+			double*								dst_x, //&dst_x
 			double* 							dst_y)	//&dst_y		
 {
 	PrgT_List* 			neighbor_list;
@@ -367,6 +381,30 @@ int aodv_geo_compute_expand_flooding_angle(
 	*dst_y = DEFAULT_Y;
 	entry_exists = aodv_geo_table_entry_exists(geo_table_ptr, dest_addr);
 	
+	if (entry_exists == OPC_FALSE)
+	{
+		// This is the first time we're sending a request to this destination
+		// because we don't have an entry in the geo table. So flood requests
+		// like regular AODV.
+		// Destination is not in geoTable ==> BROADCAST)
+		FRET (BROADCAST_REQUEST_LEVEL);
+	}
+	
+	// We have previously known coordinates for the destination. 
+	// Retrieve the coordinates from the geo table.
+	
+	// Get Destination's info
+	geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
+	
+	if (geo_entry_ptr != OPC_NIL && entry_exists)
+	{
+		// Set destination coordinates
+		*dst_x = geo_entry_ptr->dst_x;
+		*dst_y = geo_entry_ptr->dst_y;
+	}
+		
+	
+	
 	switch(aodv_type)
 		{
 		
@@ -375,16 +413,8 @@ int aodv_geo_compute_expand_flooding_angle(
 			// LAR TODO
 			// MKA 12/12/10
 			// Get Destination's info
-			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
 		
-			if (geo_entry_ptr != OPC_NIL && entry_exists)
-			{
-				// Set destination coordinates
-				*dst_x = geo_entry_ptr->dst_x;
-				*dst_y = geo_entry_ptr->dst_y;
-			}
-		
-			// Initial LAR request failed revert to regular AODV
+			// Initial LAR request failed; revert to regular AODV
 			if (request_level != INITIAL_REQUEST_LEVEL)
 			{
 				request_level = BROADCAST_REQUEST_LEVEL;
@@ -397,15 +427,6 @@ int aodv_geo_compute_expand_flooding_angle(
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
 		case AODV_TYPE_GEO_ROTATE_01:
-		
-			// handle via an outside function creating RREQ with Geo Information
-			if(entry_exists == OPC_FALSE)
-			{
-				// Destination is not in geoTable ==> BROADCAST)
-				request_level = BROADCAST_REQUEST_LEVEL;
-			}
-			else
-			{
 			
 				// RJ_VH 5/20/10
 				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
@@ -416,10 +437,6 @@ int aodv_geo_compute_expand_flooding_angle(
 					request_level = 1; // initially flooding angle = 180 degrees
 				}
 
-			
-			
-				// Get Destination's info
-				geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
 
 				// get neighbor list
 				neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
@@ -437,10 +454,6 @@ int aodv_geo_compute_expand_flooding_angle(
 					request_level++;
 				}
 				
-				// Set destination coordinates
-				*dst_x = geo_entry_ptr->dst_x;
-				*dst_y = geo_entry_ptr->dst_y;
-			}
 			break;
 			
 		case AODV_TYPE_REGULAR:
@@ -604,8 +617,14 @@ LAR_Data* new_LAR_Data(double x, double y)
 }
 
 // MKA 12/02/10
-// This function performs initializations for LAR, including inserting the initial
-// LAR_Data entries for the global database.
+// Purpose:	This function performs initializations for LAR, including inserting the initial
+// 			LAR_Data entries for the global database.
+// IN:		module_data_ptr		-	a pointer to the node's module data (used to retrieve the IP.
+//									(usually retrieved like this: (IpT_Rte_Module_Data*) op_pro_modmem_access () )
+//			address_mode		-	the address mode we're using (this format will be used for the IPs used as
+//									keys for storing LAR_Data).
+//			x, y				-	the node's initial position.
+									
 void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family address_mode, double x, double y )
 {
 	
@@ -648,9 +667,14 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family 
 }
 
 // MKA 12/02/10
-// This method returns whether or not the current node is within the 
-// request zone. The request zone will be as specified by LAR Scheme 1 (with Dan Urbano's alterations
-// to take into account a source parallel to the destination).
+// Purpose:	This method returns whether or not the current node is within the 
+// 			request zone. The request zone will be as specified by LAR Scheme 1 (with Dan Urbano's alterations
+// 			to take into account a source parallel to the destination).
+// IN:		src_x, src_y	-	the coordinates of the originating source node
+//			curr_x, curr_y	-	the coordinates of the node to test
+//			dest_x, dest_y	-	the coordinates of the destination node.
+//			radius			-	the velocity of the destination, or the radius of the expected zone per LAR1.
+// OUT:		OPC_TRUE if the node is within the request zone and OPC_FALSE otherwise.
 Boolean aodv_geo_LAR_within_request_zone(double src_x, double src_y, double curr_x, double curr_y, double dest_x, double dest_y, double radius)
 {
 	Point2D ll, ul, ur, lr;
@@ -690,8 +714,12 @@ Boolean aodv_geo_LAR_within_request_zone(double src_x, double src_y, double curr
 }
 
 // MKA 12/02/10
-// Simple helper function that determines whether or not the given Point
-// is within the bounds of the provided Rectangle.
+// Purpose:	Simple helper function that determines whether or not the given Point
+// 			is within the bounds of the provided Rectangle.
+// IN:		location	-	the point to check.
+// 			zone		-	the bounds to check against.
+// OUT:		OPC_TRUE if the given location is contained within the zone,
+//			and OPC_FALSE otherwise.
 Boolean aodv_geo_LAR_is_point_contained(Point2D *location, Rectangle *zone)
 {
 	FIN (aodv_geo_LAR_is_point_contained( <args> ));
@@ -721,22 +749,11 @@ Boolean aodv_geo_LAR_is_point_contained(Point2D *location, Rectangle *zone)
 }
 
 // MKA 12/02/10
-// Retrieve LAR_Data from the global database using the given IP.
+// Purpose:	Retrieve LAR_Data from the global database using the given IP.
+// IN:		char* ip	-	the IP address to use as the lookup key.
+// OUT:		A pointer to the LAR_Data stored in the database (or OPC_NIL if an 
+//			entry doesn't exist).
 LAR_Data* aodv_geo_LAR_retrieve_data(char* ip)
 {
 	return (LAR_Data*) oms_data_def_entry_access(LAR_OMS_CATEGORY, ip);
 }
-
-
-
-// ====================
-// Purpose:	Given positions of the nodes, flooding angle, and aodv type
-//				determine if the current node should rebroadcast RREQ or not
-// IN:			orig_x, orig_y -- position of the node that originated the RREQ
-//				prev_x, prev_y -- position of the node where the RREQ was received from
-//				curr_x, curr_y -- position of the node that received the RREQ
-//				dest_x, dest_y -- position of the destination node
-//				flooding_angle -- acceptable angle to forward the RREQ
-//				aodv_type	   -- type of aodv being used
-// Out:		TRUE if the current node should rebroadcase the RREQ
-//				FALSE if the RREQ should be destroyed
