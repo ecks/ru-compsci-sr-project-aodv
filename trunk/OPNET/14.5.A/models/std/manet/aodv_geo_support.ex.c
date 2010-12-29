@@ -206,6 +206,7 @@ Boolean aodv_geo_rebroadcast(
 						double curr_x, double curr_y, 		// Coordinates of the node that received RREQ
 						double dest_x, double dest_y,		// Coordinates of the destination node
 						double flooding_angle,				// Angle in degrees of the flooding angle
+						double angle_padding,				// The maximum value by which the flooding angle can expand (for Geo_Expand only)
 						int	   aodv_type, 					// Type of AODV being used
 						double dest_velocity)				// The calculated velocity of the destination node (LAR)
 {
@@ -219,6 +220,8 @@ Boolean aodv_geo_rebroadcast(
 	
 	if (flooding_angle >= 360.0)
 	{
+		//We're flooding, so you have to rebroadcast.
+	
 		//This takes care of regular AODV too since flooding_angle will always be 360 for regular AODV
 		//when it is computed in aodv_geo_compute_expand_flooding_angle.
 		FRET (OPC_TRUE);
@@ -262,11 +265,20 @@ Boolean aodv_geo_rebroadcast(
 				// Since the angle formed 
 				if (angle > flooding_angle)
 				{
+					//MKA 12/28/10
+					// If we're using GEO_EXPAND
+					if (aodv_type == AODV_TYPE_GEO_EXPAND && angle - flooding_angle <= angle_padding)
+					{
+						printf("GEO_EXPAND: Angle (%.2f) is within the padding of %.2f degrees of the flooding angle %.2f degrees, so it will rebroadcast the RREQ.\n", 
+													angle, angle_padding, flooding_angle);
+						FRET(OPC_TRUE);
+					}
+					
 					FRET(OPC_FALSE);
 				}
 				
 				
-			}
+			}	
 			
 			// THis is NOT a brodcast or 
 			//    the angle formed by orig, curr, and dest node is less than floodign angle
@@ -274,7 +286,7 @@ Boolean aodv_geo_rebroadcast(
 			FRET(OPC_TRUE);
 		
 		case AODV_TYPE_GEO_ROTATE:
-			// GeoAODV Rotate_01 implementation:
+			// GeoAODV Rotate implementation:
 			
 			// Set flooding angle to intial value degrees, forward to all neighbours in the search 
 			// area formed by the  flooding angle
@@ -412,7 +424,6 @@ int aodv_geo_compute_expand_flooding_angle(
 		case AODV_TYPE_LAR_ZONE:
 			// LAR TODO
 			// MKA 12/12/10
-			// Get Destination's info
 		
 			// Initial LAR request failed; revert to regular AODV
 			if (request_level != INITIAL_REQUEST_LEVEL)
