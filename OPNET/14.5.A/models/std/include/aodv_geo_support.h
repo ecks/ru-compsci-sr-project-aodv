@@ -15,7 +15,8 @@ Boolean aodv_geo_rebroadcast(
 						double prev_x, double prev_y,		
 						double curr_x, double curr_y, 		
 						double dest_x, double dest_y,		
-						double flooding_angle,				
+						double flooding_angle,	
+						double angle_padding,
 						int	   aodv_type,
 						double dest_velocity);	//MKA 12/02/10 - Needed for LAR.
 
