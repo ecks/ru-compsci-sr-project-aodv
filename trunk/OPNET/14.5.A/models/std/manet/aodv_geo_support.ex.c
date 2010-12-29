@@ -266,7 +266,7 @@ Boolean aodv_geo_rebroadcast(
 				if (angle > flooding_angle)
 				{
 					//MKA 12/28/10
-					// If we're using GEO_EXPAND
+					// If we're using GEO_EXPAND, then we have some wiggle-room.
 					if (aodv_type == AODV_TYPE_GEO_EXPAND && angle - flooding_angle <= angle_padding)
 					{
 						printf("GEO_EXPAND: Angle (%.2f) is within the padding of %.2f degrees of the flooding angle %.2f degrees, so it will rebroadcast the RREQ.\n", 
@@ -437,36 +437,60 @@ int aodv_geo_compute_expand_flooding_angle(
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
-		case AODV_TYPE_GEO_ROTATE_01:
-			
-				// RJ_VH 5/20/10
-				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
-				// unless there are no neighboring nodes within that area
-				if (aodv_type == AODV_TYPE_GEO_ROTATE_01 && request_level == INITIAL_REQUEST_LEVEL)
-				{
-					// This is the initial Route discover phase. First time request level is set to 180 
-					request_level = 1; // initially flooding angle = 180 degrees
-				}
-
-
 				// get neighbor list
 				neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
 				
-				while (request_level != BROADCAST_REQUEST_LEVEL)
+				//MKA 12/28/10
+				// I don't like break statements in while loops, so I changed it and made it less icky. :P
+				// if there is no neighbor within the flooding angle, increase it (unless the angle reaches 360 degrees).
+				while (request_level != BROADCAST_REQUEST_LEVEL && aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
+																						src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y) == OPC_FALSE)
 				{
 				
-					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
-												src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y)) == OPC_TRUE)
-					{
-						// Broadcast is NOT neeeded, request level is found
-						break;
-					}
+//					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
+//												src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y)) == OPC_TRUE)
+//					{
+//						// Broadcast is NOT neeeded, request level is found
+//						break;
+//					}
+					
 					// Check bigger angle
 					request_level++;
 				}
 				
 			break;
 			
+		case AODV_TYPE_GEO_ROTATE_01:
+			
+				// RJ_VH 5/20/10
+				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
+				// unless there are no neighboring nodes within that area
+			
+				// MKA 12/28/10
+				// For Geo_Rotate_01, the flooding angle will be either 180 or 360 (broadcast).
+				// get neighbor list
+				if (request_level == INITIAL_REQUEST_LEVEL)
+				{
+					// This is the initial Route discover phase. First time request level is set to 180 
+					request_level = 1; // initially flooding angle = 180 degrees
+
+					neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
+					
+					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
+												src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y)) == OPC_FALSE)
+					{
+						// If there are no neighbors, broadcast instead?
+						request_level = BROADCAST_REQUEST_LEVEL;
+					}
+				}
+				else
+				{
+					// This isn't the first time, so broadcast.
+					request_level = BROADCAST_REQUEST_LEVEL;
+				}
+
+				break;
+				
 		case AODV_TYPE_REGULAR:
 		default:
 			// do not use or expland the flooding angle based on neightbor locations
