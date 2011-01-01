@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D1A9E9D 4D1A9E9D 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D1E8FFB 4D1E8FFB 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -544,6 +544,7 @@ aodv_rte_attributes_parse_buffers_create (void)
 	delete_period = AODVC_DELETE_PERIOD_CONSTANT_K * aodv_rte_max_find (active_route_timeout, hello_interval);
 		
 	/* Schedule the first hello interrupt	*/
+	printf("Scheduling the first HELLO at time %.5f\n", op_sim_time()+ hello_interval);
 	op_intrpt_schedule_self (op_sim_time () + hello_interval, AODVC_HELLO_TIMER_EXPIRY);
 	
 	/* Initailize the various buffers	*/
@@ -1649,42 +1650,20 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	// so we can retrieve coordinates of the previous node for GeoTable
 	// GeoTable must contain these coordinates because previous node is a neighboring node
 
-// MKA 12/27/10
-// GeoRotate implementations have previous nodes store their own coordinates as the 
-// source coordinates.
+	// MKA 12/31/10
+	// Extract the previous node's coordinates from the RREQ options and update the geo table.
+	prev_x = rreq_option_ptr->prev_x;
+	prev_y = rreq_option_ptr->prev_y;
 	
-	if (geo_routing_type == AODV_TYPE_GEO_ROTATE || geo_routing_type == AODV_TYPE_GEO_ROTATE_01)
-	{
-		prev_x = (double) rreq_option_ptr->src_x;
-		prev_y = (double) rreq_option_ptr->src_y;
-		printf("Previous node's location (%.0f, %.0f), %f\n", prev_x, prev_y, op_sim_time());
-		// Pull previous node's IP from the IP Datagram.
-			inet_address_print (tmp_ip_addr, ip_dgram_fd_ptr->prev_addr);
-			printf("Also greedily UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+	printf("Previous node's location (%.0f, %.0f), %f\n", prev_x, prev_y, op_sim_time());
 
-		// Need to check if the new coordinates are in fact the freshest (?)
-		// Perhaps also use the sequence number in the GeoTable
-		aodv_geo_table_update(geo_table_ptr, ip_dgram_fd_ptr->prev_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
-	}
-	else
-	{
-	
-	// Geo table  should contain the x,y coordinates of the node from which the
-	// packet has arrived ==> get coordinates of the previous node
-		if(aodv_geo_table_entry_exists(geo_table_ptr, ip_dgram_fd_ptr->src_addr))
-		{
-			geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, rreq_option_ptr->src_addr, OPC_FALSE);			printf("Previous node's location (%.0f, %.0f), %f\n", geo_entry_ptr->dst_x, geo_entry_ptr->dst_y, op_sim_time());
-			prev_x = geo_entry_ptr->dst_x; 
-			prev_y = geo_entry_ptr->dst_y;
-			
-		}	
-		else
-		{
-			printf("\n ############ ERROR!!! Previous node's coordinates are NOT found!!!\n\n");
-			prev_x = -1;
-			prev_y = -1;
-		}
-	}
+	// Pull previous node's IP from the IP Datagram.
+	inet_address_print (tmp_ip_addr, ip_dgram_fd_ptr->src_addr);
+	printf("Also greedily UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+
+	// Need to check if the new coordinates are in fact the freshest (?)
+	// Perhaps also use the sequence number in the GeoTable
+	aodv_geo_table_update(geo_table_ptr, ip_dgram_fd_ptr->src_addr, prev_x, prev_y);
 	
 	// MKA 12/02/10 - Get the destination's LAR information (so that we can retrieve velocity).
 	inet_address_print (tmp_ip_addr, rreq_option_ptr->dest_addr);
@@ -1709,7 +1688,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 								(lar_data != OPC_NIL ? lar_data->velocity : 0)
 							) == OPC_FALSE)
 	{
-		printf("AODV GEO REBROADCAST = FALSE; DISCARDING PACKET.");
+		printf("AODV GEO REBROADCAST = FALSE; DISCARDING PACKET.\n");
 		op_pk_destroy (aodv_pkptr);
 		manet_rte_ip_pkt_destroy (ip_pkptr);
 		FOUT;
@@ -1722,13 +1701,10 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* Decrement the TTL field by one		*/
 	new_ttl_value = ip_dgram_fd_ptr->ttl - 1;
 	
-	//MKA 12/27/10
-	//If using GeoRotate, make sure you change the src coordinates to this node's coordinates.
-	if (geo_routing_type == AODV_TYPE_GEO_ROTATE || geo_routing_type == AODV_TYPE_GEO_ROTATE_01)
-	{
-		rreq_option_ptr->src_x = curr_x;
-		rreq_option_ptr->src_y = curr_y;
-	}
+	//MKA 12/31/10
+	//Update the RREQ options with this node's coordinates.
+	rreq_option_ptr->prev_x = curr_x;
+	rreq_option_ptr->prev_y = curr_y;
 		
 	/* Encapsulate the RREQ packet in an IP datagram	*/
 	if (inet_address_family_get (&rreq_option_ptr->dest_addr) == InetC_Addr_Family_v4)
@@ -1844,11 +1820,18 @@ aodv_rte_rrep_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	aodv_geo_table_entry_remove (geo_table_ptr,  rrep_option_ptr->dest_addr);
 	
 	// Update GeoTable with fresher originating node information
-	if ((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
-	{
+
+//MKA NOTE: -1, -1 is a valid coordinate! This if is unnecessary. The RREP will have an
+//appropriate coordinate. If anything, the sequence number should be checked to make sure this
+//location is fresher than what we have in the geo table.
+	
+//	if ((rrep_option_ptr->dst_x != DEFAULT_X) || (rrep_option_ptr->dst_y != DEFAULT_Y))
+//	{
 		printf("  UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
 		aodv_geo_table_update (geo_table_ptr,  rrep_option_ptr->dest_addr, rrep_option_ptr->dst_x, rrep_option_ptr->dst_y);
-	}
+//	}
+	
+//END MKA
 	
 	// END VHMR 08/03/09 -- Future update: if RREQ carries fresh dest coordinates than update GeoTable
 
@@ -3582,11 +3565,11 @@ aodv_rte_rrep_hello_message_send (void)
 	
 	/* Get the hello interval	*/
 	hello_interval = oms_dist_outcome (hello_interval_dist_ptr);
-	
+
 	if (((op_sim_time () - last_broadcast_sent_time) < hello_interval) || (route_table_ptr->active_route_count == 0))
 		{
 		/* No hello message needs to be sent as a 	*/
-		/* broadcast message was sent less than the	*/
+		/* broadcast message was sent less than the	*/ 
 		/* last hello interval or this node is not 	*/
 		/* a part of any active route.				*/		
 		}
@@ -3605,6 +3588,7 @@ aodv_rte_rrep_hello_message_send (void)
 		ppid = op_topo_parent(own_id);
 		op_ima_obj_attr_get (ppid, "x position", &dst_x);
 		op_ima_obj_attr_get (ppid, "y position", &dst_y);
+		
 		
 		/* No broadcast message has been sent for more than	*/
 		/* the last hello interval. Broadcast a RREP packet	*/
