@@ -77,6 +77,10 @@ typedef struct
 	double				dst_y;
 	int					request_level;
 	// END MHAVH
+	//MKA 12/31/10
+	double prev_x;
+	double prev_y;
+	//END MKA
 	} AodvT_Rreq;
 
 /* Route Reply Option	*/

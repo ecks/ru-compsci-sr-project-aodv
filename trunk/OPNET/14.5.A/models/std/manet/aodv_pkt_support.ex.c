@@ -134,6 +134,13 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	rreq_option_ptr->dst_y = dst_y;
 	rreq_option_ptr->request_level = request_level;
 	
+	//MKA 12/31/10
+	//When an RREQ is created, the previous coordinates are the 
+	//same as the source coordinates.
+	rreq_option_ptr->prev_x = src_x;
+	rreq_option_ptr->prev_y = src_y;
+	//END MKA
+	
 	// debug	
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);

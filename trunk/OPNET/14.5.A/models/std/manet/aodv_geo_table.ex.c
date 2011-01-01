@@ -57,7 +57,8 @@ aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_ad
 
 	//prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
 	
-	if ((geo_entry_ptr == PRGC_NIL))
+	if (geo_entry_ptr == PRGC_NIL)
+	//if (geo_entry_ptr == OPC_NIL)
         FRET (OPC_FALSE);
 	
 	FRET(OPC_TRUE);
@@ -238,6 +239,14 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	
 	/* Free the request entry	*/
 	aodv_geo_table_entry_mem_free (geo_entry_ptr);
+	
+	
+	// Delete old entry if exists
+	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address))
+	{
+			printf("@#$@#$@#!@#!%$#%$ Sanity check! We removed but it stil exists\n\n");
+	}
+	
 	
 	FRET (OPC_COMPCODE_SUCCESS);	
 }
