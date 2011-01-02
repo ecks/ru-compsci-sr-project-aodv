@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D1E8FFB 4D1E8FFB 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D20F400 4D20F400 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -1168,6 +1168,30 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	// END VHMR 08/03/09 -- Future update: if RREQ carries fresh dest coordinates than update GeoTable
 	
+	//MKA 01/02/11
+	//Moved updating the table with the previous node's coordinates up here so that 
+	//the previous node's coordinates will always be recorded upon RREQ arrival.
+	
+		
+	// get the previous node address :  
+	// so we can retrieve coordinates of the previous node for GeoTable
+	// GeoTable must contain these coordinates because previous node is a neighboring node
+
+	// MKA 12/31/10
+	// Extract the previous node's coordinates from the RREQ options and update the geo table.
+	prev_x = rreq_option_ptr->prev_x;
+	prev_y = rreq_option_ptr->prev_y;
+	
+	printf("Previous node's location (%.0f, %.0f), %f\n", prev_x, prev_y, op_sim_time());
+
+	// Pull previous node's IP from the IP Datagram.
+	inet_address_print (tmp_ip_addr, ip_dgram_fd_ptr->src_addr);
+	printf("Also greedily UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
+
+	// Need to check if the new coordinates are in fact the freshest (?)
+	// Perhaps also use the sequence number in the GeoTable
+	aodv_geo_table_update(geo_table_ptr, ip_dgram_fd_ptr->src_addr, prev_x, prev_y);
+	
 	
 	if ((op_prg_odb_ltrace_active ("trace_rreq") == OPC_TRUE)|| LTRACE_ACTIVE)
 		{
@@ -1645,25 +1669,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get (ppid, "x position", &curr_x);
 	op_ima_obj_attr_get (ppid, "y position", &curr_y);
-	
-	// get the previous node address :  
-	// so we can retrieve coordinates of the previous node for GeoTable
-	// GeoTable must contain these coordinates because previous node is a neighboring node
 
-	// MKA 12/31/10
-	// Extract the previous node's coordinates from the RREQ options and update the geo table.
-	prev_x = rreq_option_ptr->prev_x;
-	prev_y = rreq_option_ptr->prev_y;
-	
-	printf("Previous node's location (%.0f, %.0f), %f\n", prev_x, prev_y, op_sim_time());
-
-	// Pull previous node's IP from the IP Datagram.
-	inet_address_print (tmp_ip_addr, ip_dgram_fd_ptr->src_addr);
-	printf("Also greedily UPDATE GeoTable! Adding  %s (%.2f, %.2f)\n", tmp_ip_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y);
-
-	// Need to check if the new coordinates are in fact the freshest (?)
-	// Perhaps also use the sequence number in the GeoTable
-	aodv_geo_table_update(geo_table_ptr, ip_dgram_fd_ptr->src_addr, prev_x, prev_y);
 	
 	// MKA 12/02/10 - Get the destination's LAR information (so that we can retrieve velocity).
 	inet_address_print (tmp_ip_addr, rreq_option_ptr->dest_addr);
