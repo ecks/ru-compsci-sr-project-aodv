@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D211A53 4D211A53 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D213025 4D213025 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -1122,15 +1122,12 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	// DEBUG*********************
 	printf("  ************** RREQ from %s arrived at %s (%.2f, %.2f)\n", tmp_ip_addr, name, curr_x, curr_y);
-	printf("  RREQ info:\n  Sequence # = %d] TTL = %d \n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
+	printf("  RREQ info:\n  Sequence # = %d TTL = %d \n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
 	printf("  SRC(x,y) = (%.2f, %.2f), DEST(x,y)= (%.f, %.f), Flooding Angle = %i, Time = %f\n\n", 
 			rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, 
 			(rreq_option_ptr->request_level+1)*90, op_sim_time());	
 	
-	
-	
-	
-	
+
 	// Update GeoTable with fresher originating node information
 	
 	// MKA 01/02/11 - UPDATING THE GEOTABLE IS TAKEN CARE OF LATER IN THIS FUNCTION, IN aodv_rte_route_table_entry_update
@@ -2416,7 +2413,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					existing_sequence_num = aodv_geo_table_entry_sequence_number(geo_table_ptr, rrep_option_ptr->dest_addr);
 					sequence_num = rrep_option_ptr->dest_seq_num;
 
-					if (sequence_num >= existing_sequence_num)
+					if (sequence_num > existing_sequence_num)
 					{
 						//This is fresher than what we have! Update!
 						printf("RREP: updating GeoTable w. Destination coordinates (%.2f, %.2f) with sequence number %d @ %.2\n", 
@@ -2425,7 +2422,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					}
 					else
 					{
-						printf("RREP: foregoing update since the seqnum I have (%d) > the seqnum in the packet (%d)\n", existing_sequence_num, sequence_num);
+						printf("RREP: foregoing update since the seqnum I have (%d) <= the seqnum in the packet (%d)\n", existing_sequence_num, sequence_num);
 					}
 					break;
 
@@ -2436,7 +2433,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					existing_sequence_num = aodv_geo_table_entry_sequence_number(geo_table_ptr, rreq_option_ptr->src_addr);
 					sequence_num = rreq_option_ptr->src_seq_num;
 					
-					if ( sequence_num >= existing_sequence_num)
+					if ( sequence_num > existing_sequence_num)
 					{
 						printf("RREQ: updating GeoTable w. Source coordinates (%.2f, %.2f) with sequence number %d @ %.2\n", 
 												rreq_option_ptr->src_x, rreq_option_ptr->src_y, sequence_num, op_sim_time());
@@ -2444,7 +2441,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					}
 					else
 					{
-						printf("RREQ: foregoing update since the seqnum I have (%d) > the seqnum in the packet (%d)\n", existing_sequence_num, sequence_num);
+						printf("RREQ: foregoing update since the seqnum I have (%d) <= the seqnum in the packet (%d)\n", existing_sequence_num, sequence_num);
 					}
 					
 					//We will, however, greedily update the previous node's coordinates...
