@@ -13,7 +13,6 @@
 // RC JS 07/12/2010 - Moved these declarations into the code file since they are not used externally, and should not be.
 static AodvT_Geo_Entry*		aodv_geo_table_entry_mem_alloc(void);
 Compcode		 aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
-void			 aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, double dst_x, double dst_y);
 
 /************************ begin modified from aodv_request_table *******************/
 AodvT_Geo_Table*
@@ -65,10 +64,27 @@ aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_ad
 	
 	}
 
+// MKA 01/02/11
+// Retrieve the sequence number stored for the given entry.
+int
+aodv_geo_table_entry_sequence_number(AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address)
+{
+	AodvT_Geo_Entry*			geo_entry_ptr = OPC_NIL;
+	
+	FIN (aodv_geo_table_entry_sequence_number (<args>));
+	
+	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address) == OPC_TRUE)
+	{
+		geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dst_address, OPC_FALSE);
+		FRET(geo_entry_ptr->sequence_number);
+	}
+	
+	FRET(-1);
+}
 
 void
 aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, 
-										double dst_x, double dst_y)
+										double dst_x, double dst_y, int sequence_number) //MKA 01/02/11
 	{
 	AodvT_Geo_Entry*			geo_entry_ptr;
 	//only used for debugging
@@ -103,10 +119,11 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 		geo_entry_ptr->insert_time = op_sim_time ();
 		geo_entry_ptr->dst_x = dst_x;
 		geo_entry_ptr->dst_y = dst_y;
+		geo_entry_ptr->sequence_number = sequence_number;	//MKA 01/02/11
 		
 		/* Insert this new request into the request table	*/
 		#ifdef GEO_AODV_TABLE_DEBUG
-		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d\n", addr_str, (int) &dst_address);
+		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d and sequence_number %d\n", addr_str, (int) dst_address, sequence_number);
 		#endif
 		inet_addr_hash_table_item_insert(geo_table_ptr->geo_table, &dst_address, geo_entry_ptr, PRGC_NIL);
 //		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table,  &(dst_address.address.ipv4_addr), 
@@ -127,7 +144,7 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 //			aodv_geo_table_entry_delete
 //			aodv_geo_table_insert
 void aodv_geo_table_update (AodvT_Geo_Table* geo_table_ptr, 
-							InetT_Address address,	double x, double y)
+							InetT_Address address,	double x, double y, int sequence_number)
 {
 		
 	/** Inserts a new geo entry into the originating geo table	**/
@@ -142,7 +159,7 @@ void aodv_geo_table_update (AodvT_Geo_Table* geo_table_ptr,
 	
 
 	// add a new entry
-	aodv_geo_table_insert(geo_table_ptr, address, x, y);
+	aodv_geo_table_insert(geo_table_ptr, address, x, y, sequence_number);
 					
 	
 	FOUT;
@@ -239,13 +256,6 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	
 	/* Free the request entry	*/
 	aodv_geo_table_entry_mem_free (geo_entry_ptr);
-	
-	
-	// Delete old entry if exists
-	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address))
-	{
-			printf("@#$@#$@#!@#!%$#%$ Sanity check! We removed but it stil exists\n\n");
-	}
 	
 	
 	FRET (OPC_COMPCODE_SUCCESS);	
