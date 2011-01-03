@@ -289,6 +289,7 @@ typedef struct
 	double 				dst_y;
 	double				insert_time;
 	int                 type; // MHAVH - 03/17/09
+	int					sequence_number;	//MKA 01/02/10
 	} AodvT_Geo_Entry;
 // MHAVH 10/25/08
 
