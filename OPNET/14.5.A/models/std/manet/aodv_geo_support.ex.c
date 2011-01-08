@@ -360,6 +360,87 @@ Boolean aodv_geo_rebroadcast(
 }
 
 
+// MKA 01/08/11
+//
+// Purpose:	Retrieve the coordinates of the node with the given IP address.
+// IN: 		AodvT_Geo_Table* geo_table_ptr	-	a reference to the geo table (needed for AODV_GEO
+//			int aodv_type					-	the type of AODV we are using.
+//			InetT_Address dest_addr			-	the address of the node whose coordinates we want
+//			
+//			double* dst_x, double* dst_y	-	destination coordinates will be stored here.
+//
+void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr, 
+									int aodv_type, 
+									InetT_Address dest_addr, 
+									double* dst_x, double* dst_y)
+{
+
+	AodvT_Geo_Entry* 	geo_entry_ptr;
+	char				ip_str[INETC_ADDR_STR_LEN];
+	LAR_Data*			lar_data;
+	
+	FIN ( aodv_geo_retrieve_coordinates( <args> ) );
+	
+	// default destination coordinates and flood angle is brodacast angle.
+	*dst_x = DEFAULT_X;
+	*dst_y = DEFAULT_Y;
+	
+	switch (aodv_type)
+	{
+		case AODV_TYPE_GEO_STATIC:
+		case AODV_TYPE_GEO_EXPAND:
+		case AODV_TYPE_GEO_ROTATE:
+		case AODV_TYPE_GEO_ROTATE_01:
+        
+        	if (aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_TRUE)
+			{
+				// We have previously known coordinates for the destination. 
+				// Retrieve the coordinates from the geo table.
+        
+				// Get Destination's info
+				geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
+        
+				if (geo_entry_ptr != OPC_NIL)
+				{
+                	// Set destination coordinates
+                	*dst_x = geo_entry_ptr->dst_x;
+					*dst_y = geo_entry_ptr->dst_y;
+				}
+			}
+			break;
+			
+		case AODV_TYPE_LAR_DISTANCE:
+		case AODV_TYPE_LAR_ZONE:
+			
+			//Get ip as a string
+			inet_address_print(ip_str, dest_addr);
+			
+			//Retrieve the global entry we have for this node.
+			lar_data = aodv_geo_LAR_retrieve_data(ip_str);
+			if (lar_data != OPC_NIL)
+			{
+				// Set destination coordinates.
+				*dst_x = lar_data->x;
+				*dst_y = lar_data->y;
+			}
+			else
+			{
+				//This should never happen unless the interrupt updates haven't been set correctly.
+				printf("aodv_geo_retrieve_coordinates:\t ERROR! LAR_Data doesn't exist for %s! Can't set destination coordinates!\n", ip_str);
+			}
+			break;
+			
+		case AODV_TYPE_REGULAR:
+		default:
+			// does NOT maintain coordinates
+			break;
+		
+	}
+	
+	FOUT;
+}
+
+
 
 // Purpose:	Decide to change the flooding angle based on geo table information of
 //				neighboring nodes
@@ -378,47 +459,16 @@ int aodv_geo_compute_expand_flooding_angle(
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
-			double*								dst_x, //&dst_x
-			double* 							dst_y)	//&dst_y		
+			double								dst_x, //&dst_x
+			double	 							dst_y)	//&dst_y		
 {
 	PrgT_List* 			neighbor_list;
-	AodvT_Geo_Entry* 	geo_entry_ptr;
-	Boolean				entry_exists;			
 
 	FIN (aodv_geo_rreqsend( <args> ));
-
-
-	// default destination coordinates and flood angle is brodacast angle.
-	*dst_x = DEFAULT_X;
-	*dst_y = DEFAULT_Y;
-	entry_exists = aodv_geo_table_entry_exists(geo_table_ptr, dest_addr);
-	
-	if (entry_exists == OPC_FALSE)
-	{
-		// This is the first time we're sending a request to this destination
-		// because we don't have an entry in the geo table. So flood requests
-		// like regular AODV.
-		// Destination is not in geoTable ==> BROADCAST)
-		FRET (BROADCAST_REQUEST_LEVEL);
-	}
-	
-	// We have previously known coordinates for the destination. 
-	// Retrieve the coordinates from the geo table.
-	
-	// Get Destination's info
-	geo_entry_ptr = aodv_geo_table_entry_get(geo_table_ptr, dest_addr, OPC_FALSE);
-	
-	if (geo_entry_ptr != OPC_NIL && entry_exists)
-	{
-		// Set destination coordinates
-		*dst_x = geo_entry_ptr->dst_x;
-		*dst_y = geo_entry_ptr->dst_y;
-	}
-		
 	
 	
 	switch(aodv_type)
-		{
+	{
 		
 		case AODV_TYPE_LAR_DISTANCE:
 		case AODV_TYPE_LAR_ZONE:
@@ -437,6 +487,14 @@ int aodv_geo_compute_expand_flooding_angle(
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
+
+				// MKA 01/08/11
+				if (aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
+				{
+					//Since we don't have accurate destination coordinates, just broadcast.
+					FRET (BROADCAST_REQUEST_LEVEL);
+				}
+				
 				// get neighbor list
 				neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
 				
@@ -444,7 +502,7 @@ int aodv_geo_compute_expand_flooding_angle(
 				// I don't like break statements in while loops, so I changed it and made it less icky. :P
 				// if there is no neighbor within the flooding angle, increase it (unless the angle reaches 360 degrees).
 				while (request_level != BROADCAST_REQUEST_LEVEL && aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
-																						src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y) == OPC_FALSE)
+																						src_x, src_y, dst_x, dst_y) == OPC_FALSE)
 				{
 				
 //					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
@@ -461,6 +519,13 @@ int aodv_geo_compute_expand_flooding_angle(
 			break;
 			
 		case AODV_TYPE_GEO_ROTATE_01:
+				
+				// MKA 01/08/11
+				if (aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
+				{
+					//Since we don't have accurate destination coordinates, just broadcast.
+					FRET (BROADCAST_REQUEST_LEVEL);
+				}
 			
 				// RJ_VH 5/20/10
 				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
@@ -477,7 +542,7 @@ int aodv_geo_compute_expand_flooding_angle(
 					neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
 					
 					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
-												src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y)) == OPC_FALSE)
+												src_x, src_y, dst_x, dst_y)) == OPC_FALSE)
 					{
 						// If there are no neighbors, broadcast instead?
 						request_level = BROADCAST_REQUEST_LEVEL;
@@ -497,7 +562,7 @@ int aodv_geo_compute_expand_flooding_angle(
 			request_level = BROADCAST_REQUEST_LEVEL;
 			break;
 		
-		}
+	}
 	
 	
 	// Destination is not  in geoTable ==> BROADCAST)

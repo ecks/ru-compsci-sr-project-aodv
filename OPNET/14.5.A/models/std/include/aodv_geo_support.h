@@ -10,6 +10,12 @@
 #include <ip_rte_support.h>
 
 
+// MKA 01/08/11
+void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr, 
+									int aodv_type, 
+									InetT_Address dest_addr, 
+									double* dst_x, double* dst_y);
+
 Boolean aodv_geo_rebroadcast(
 						double orig_x, double orig_y,		
 						double prev_x, double prev_y,		
@@ -29,8 +35,8 @@ int aodv_geo_compute_expand_flooding_angle(
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
-			double*								dst_x, 
-			double*								dst_y);
+			double								dst_x, 
+			double								dst_y);
 
 Boolean aodv_geo_LAR_distance(double start_x, double start_y,  double mid_x,   double mid_y,  double end_x,   double end_y);
 
