@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D213025 4D213025 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D28F932 4D28F932 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -2395,8 +2395,6 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
-		case AODV_TYPE_LAR_DISTANCE:
-		case AODV_TYPE_LAR_ZONE:
 		case AODV_TYPE_GEO_ROTATE_01:
 			// Update GeoTable
 			switch (tlv_options_ptr->type)
@@ -2459,6 +2457,8 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					break;
 			}
 		
+		case AODV_TYPE_LAR_DISTANCE:
+		case AODV_TYPE_LAR_ZONE:
 		case AODV_TYPE_REGULAR:
 		default:
 			// does NOT maintain coordinates
@@ -2510,8 +2510,6 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
-		case AODV_TYPE_LAR_DISTANCE:
-		case AODV_TYPE_LAR_ZONE:
 		case AODV_TYPE_GEO_ROTATE_01:
 			// Update GeoTable
 			aodv_geo_table_update(geo_table_ptr, prev_hop_addr,((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_x,
@@ -2519,6 +2517,8 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 									sequence_num);
 			break;
 			
+		case AODV_TYPE_LAR_DISTANCE:
+		case AODV_TYPE_LAR_ZONE:
 		case AODV_TYPE_REGULAR:
 		default:
 			// does NOT maintain coordinates
@@ -2580,15 +2580,18 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	op_ima_obj_attr_get (ppid, "y position", &src_y);
 	
 	
+	
+	//MKA 01/08/11
+	aodv_geo_retrieve_coordinates(geo_table_ptr, geo_routing_type, dest_addr, &dst_x, &dst_y);
+	printf("\nAfter pass by references destination coordinates are (%.2f, %.2f)\n\n", dst_x, dst_y);
+	
 	printf("=> before request_level = %d\n", request_level);
 	// Compute the new, if necessary, request level for AODV type
 	// destination coordinates are passed by reference
 	request_level = aodv_geo_compute_expand_flooding_angle(neighbor_connectivity_table, dest_addr, src_x, src_y, 
-														   request_level, geo_table_ptr, geo_routing_type, &dst_x, &dst_y); 
+														   request_level, geo_table_ptr, geo_routing_type, dst_x, dst_y); 
 	
 	printf("=> after request_level = %d\n", request_level);
-	
-	printf("\nAfter pass by references destination coordinates are (%.2f, %.2f)\n\n", dst_x, dst_y);
 	
 	// Create RREQ to reroadcast
 	rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (
