@@ -99,7 +99,8 @@ AodvT_Packet_Option*
 aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean grat_rrep, Boolean dest_only,
 	Boolean unknown_seq_num, int hop_count, int rreq_id, InetT_Address dest_addr, int dest_seq_num,
 	InetT_Address src_addr, int src_seq_num, 
-	double src_x, double src_y, double dst_x, double dst_y, int request_level)
+	//double src_x, double src_y, double dst_x, double dst_y, int request_level, double velocity
+	AodvT_LAR_Info geo_lar_options)	//MKA 01/25/11 - Extensibly encapsulate all Geo/LAR options! :)
 	{
     AodvT_Rreq*					rreq_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
@@ -127,6 +128,10 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	rreq_option_ptr->src_seq_num = src_seq_num;
 	rreq_option_ptr->dest_addr = inet_address_copy (dest_addr);
 	rreq_option_ptr->src_addr = inet_address_copy (src_addr);
+	
+	// MKA 01/25/11
+	rreq_option_ptr->geo_lar_options = geo_lar_options;
+	/*
 	// MHAVH
 	rreq_option_ptr->src_x = src_x;
 	rreq_option_ptr->src_y = src_y;
@@ -140,6 +145,8 @@ aodv_pkt_support_rreq_option_create_geo (Boolean join, Boolean repair, Boolean g
 	rreq_option_ptr->prev_x = src_x;
 	rreq_option_ptr->prev_y = src_y;
 	//END MKA
+	
+	*/
 	
 	// debug	
 	own_id = op_id_self();
@@ -199,7 +206,7 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	AodvT_Rrep*					rrep_option_ptr;
 	AodvT_Packet_Option*		aodv_pkt_option_ptr;
 	// temporary placeholders for debugging
-	char						tmp_ip_addr[INETC_ADDR_STR_LEN];
+	//char						tmp_ip_addr[INETC_ADDR_STR_LEN];
 	Objid						own_id;
 	Objid						ppid;
 	char						name[256];
@@ -230,7 +237,7 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	
 	//printf("RREP:(%.f, %.f), %.f\n", 
 	//		 dst_x, dst_y, op_sim_time());
-	inet_address_print(tmp_ip_addr, rrep_option_ptr->dest_addr);
+	//inet_address_print(tmp_ip_addr, rrep_option_ptr->dest_addr);
 	//printf("  * created with dest_addr of %s by %s\n", tmp_ip_addr, name);
 	//END MHAVH
 					   
@@ -342,8 +349,7 @@ aodv_pkt_support_option_mem_copy (AodvT_Packet_Option* option_ptr)
 				rreq_option_ptr->unknown_seq_num_flag, rreq_option_ptr->hop_count, rreq_option_ptr->rreq_id,
 				rreq_option_ptr->dest_addr, rreq_option_ptr->dest_seq_num, rreq_option_ptr->src_addr,
 				rreq_option_ptr->src_seq_num,
-				rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,
-				rreq_option_ptr->request_level);
+				rreq_option_ptr->geo_lar_options);	//MKA 01/25/11
 			printf("Done copying RREQ packet\n\n");
 			
 			// MHAVH			

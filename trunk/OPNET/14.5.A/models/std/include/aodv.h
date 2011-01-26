@@ -293,6 +293,26 @@ typedef struct
 	} AodvT_Geo_Entry;
 // MHAVH 10/25/08
 
+// MKA 01/25/11
+// These utility structs are here so that all of the aodv code can utilize them.
+typedef struct Point2D
+{
+	double x;
+	double y;
+	
+} Point2D;
+
+
+typedef struct Rectangle
+{
+	Point2D lower_left;
+	Point2D upper_left;
+	Point2D upper_right;
+	Point2D lower_right;
+	
+} Rectangle;
+
+
 
 #if defined (__cplusplus)
 } /* end of 'extern "C" {' */

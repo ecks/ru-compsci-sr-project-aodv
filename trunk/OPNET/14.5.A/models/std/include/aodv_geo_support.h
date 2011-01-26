@@ -106,6 +106,7 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data*, InetT_Addr_Family , double , doubl
 // to take into account a source parallel to the destination).
 Boolean aodv_geo_LAR_within_request_zone(double src_x, double src_y, double curr_x, double curr_y, double dest_x, double dest_y, double radius);
 
+/* These can be found in aodv.h now
 typedef struct Point2D
 {
 	double x;
@@ -121,6 +122,7 @@ typedef struct Rectangle
 	Point2D lower_right;
 	
 } Rectangle;
+*/
 
 // MKA 12/02/10
 // Simple helper function that determines whether or not the given Point
