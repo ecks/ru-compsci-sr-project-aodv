@@ -88,7 +88,7 @@ AodvT_Packet_Option*		aodv_pkt_support_rreq_option_create (Boolean, Boolean, Boo
 // MHAVH 10/11/08 - our modified function
 AodvT_Packet_Option*
 aodv_pkt_support_rreq_option_create_geo (Boolean, Boolean, Boolean, Boolean, Boolean,
-	int, int, InetT_Address, int, InetT_Address, int, double, double, double, double, int);
+	int, int, InetT_Address, int, InetT_Address, int, AodvT_LAR_Info);
 // MHAVH
 
 

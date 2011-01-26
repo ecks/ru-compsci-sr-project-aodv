@@ -17,6 +17,7 @@
 
 #include <ip_addr_v4.h>
 #include <ip_rte_v4.h>
+#include <aodv.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -56,6 +57,18 @@ typedef struct
 	void*			value_ptr;
 	} AodvT_Packet_Option;
 	
+
+/* Encapsulate all GEO/LAR options */
+//MKA 01/25/11
+typedef struct
+{
+	Point2D				src;
+	Point2D				prev;
+	Point2D				dst;
+	int					request_level;
+	double				velocity;
+} AodvT_LAR_Info;
+
 /* Route Request Option	*/
 typedef struct
 	{
@@ -70,6 +83,11 @@ typedef struct
 	int					dest_seq_num;
 	InetT_Address		src_addr;
 	int					src_seq_num;
+	AodvT_LAR_Info		geo_lar_options;
+	
+/*	ALL OF THESE OPTIONS HAVE BEEN ENCAPSULATED INTO
+	THE AodvT_LAR_Info STRUCT!
+
 	// MHAVH 11/10/08
 	double				src_x;
 	double				src_y;
@@ -81,6 +99,7 @@ typedef struct
 	double prev_x;
 	double prev_y;
 	//END MKA
+*/
 	} AodvT_Rreq;
 
 /* Route Reply Option	*/

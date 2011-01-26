@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D28F932 4D28F932 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D3FAEE0 4D3FAEE0 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -1082,9 +1082,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	double 					curr_x, prev_x;
 	double 					curr_y, prev_y;
 	
-	// MKA 12/02/10 - Using LAR
-	LAR_Data*				lar_data;
-	double					destX, destY;
+	// MKA 01/25/11 - using the new geo/lar data struct
+	AodvT_LAR_Info*			geo_lar_options;
 
 	// MHAVH
 	
@@ -1094,6 +1093,9 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* A route request packet has arrived at this node	*/
 	/* Get the request options from the packet			*/
 	rreq_option_ptr = (AodvT_Rreq*) tlv_options_ptr->value_ptr;	
+	
+	// MKA 01/25/11 - Retrieve additional geo/lar options
+	geo_lar_options = &(rreq_option_ptr->geo_lar_options);
 	
 	/* Get the previous hop from which this packet arrived	*/
 	prev_hop_addr = ip_dgram_fd_ptr->src_addr;
@@ -1124,8 +1126,9 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	printf("  ************** RREQ from %s arrived at %s (%.2f, %.2f)\n", tmp_ip_addr, name, curr_x, curr_y);
 	printf("  RREQ info:\n  Sequence # = %d TTL = %d \n", rreq_option_ptr->src_seq_num, ip_dgram_fd_ptr->ttl);
 	printf("  SRC(x,y) = (%.2f, %.2f), DEST(x,y)= (%.f, %.f), Flooding Angle = %i, Time = %f\n\n", 
-			rreq_option_ptr->src_x, rreq_option_ptr->src_y, rreq_option_ptr->dst_x, rreq_option_ptr->dst_y, 
-			(rreq_option_ptr->request_level+1)*90, op_sim_time());	
+			geo_lar_options->src.x, geo_lar_options->src.y, 
+			geo_lar_options->dst.x, geo_lar_options->dst.y, 
+			(geo_lar_options->request_level+1)*90, op_sim_time());	
 	
 
 	// Update GeoTable with fresher originating node information
@@ -1140,8 +1143,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	// MKA 12/31/10
 	// Extract the previous node's coordinates from the RREQ options and update the geo table.
-	prev_x = rreq_option_ptr->prev_x;
-	prev_y = rreq_option_ptr->prev_y;
+	prev_x = geo_lar_options->prev.x;
+	prev_y = geo_lar_options->prev.y;
 	
 	printf("Previous node's location (%.0f, %.0f), %f\n", prev_x, prev_y, op_sim_time());
 
@@ -1164,6 +1167,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	/* Update the route to the previous hop of the	*/
 	/* route request message.						*/
+	/* MKAVHRCDU - 1/17/11 - This method will also update the GeoTable with fresh coordinate information */
 	aodv_rte_route_table_entry_update (ip_dgram_fd_ptr, intf_ici_fdstruct_ptr, tlv_options_ptr);
 	
 	/* If the source address of the route request	*/
@@ -1619,27 +1623,18 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 
 	// Determine if the current node should re-broadcast the RREQ
 	
-	// MKA 12/02/10 - Get the destination's LAR information (so that we can retrieve velocity).
-	inet_address_print (tmp_ip_addr, rreq_option_ptr->dest_addr);
-	printf("Dst IP = %s\n", tmp_ip_addr);
-	lar_data = aodv_geo_LAR_retrieve_data(tmp_ip_addr);
-	if (lar_data != OPC_NIL)
-		printf("Dst Location = (%.2f, %.2f), Dst velocity = %.2f\n", lar_data->x, lar_data->y, lar_data->velocity);
-	
-	destX = rreq_option_ptr->dst_x;
-	destY = rreq_option_ptr->dst_y;
 	
 	// Check if this intermediate node has to rebraodcast this RREQ based on additional geoAODV or LAR conditions
-	if (aodv_geo_rebroadcast( (double) rreq_option_ptr->src_x, (double) rreq_option_ptr->src_y,	
+	// TODO CHANGE AODV_GEO_* methods to take Point2D instead of src_x,src_y or dst_x,dst_y.
+	if (aodv_geo_rebroadcast(	geo_lar_options->src.x, geo_lar_options->src.y,	
 								prev_x,  prev_y, 
 								curr_x,  curr_y, 		
-								// MKA 12/02/10
-								//rreq_option_ptr->dst_x, rreq_option_ptr->dst_y,	
-								destX, destY,
-								(double) ((rreq_option_ptr->request_level+1) * 90),
-								angle_padding,
+								// MKA 01/25/11
+								geo_lar_options->dst.x, geo_lar_options->dst.y,
+								(double) ((geo_lar_options->request_level+1) * 90),  //TODO Use a variable name instead of a constant
+								angle_padding, //TODO get rid of this
 								geo_routing_type,
-								(lar_data != OPC_NIL ? lar_data->velocity : 0)
+								geo_lar_options->velocity
 							) == OPC_FALSE)
 	{
 		printf("AODV GEO REBROADCAST = FALSE; DISCARDING PACKET.\n");
@@ -1657,8 +1652,8 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	//MKA 12/31/10
 	//Update the RREQ options with this node's coordinates.
-	rreq_option_ptr->prev_x = curr_x;
-	rreq_option_ptr->prev_y = curr_y;
+	geo_lar_options->prev.x = curr_x;
+	geo_lar_options->prev.y = curr_y;
 		
 	/* Encapsulate the RREQ packet in an IP datagram	*/
 	if (inet_address_family_get (&rreq_option_ptr->dest_addr) == InetC_Addr_Family_v4)
@@ -2223,6 +2218,7 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 	
 	//MKA 01/02/11
 	int						existing_sequence_num;
+	AodvT_LAR_Info*			geo_lar_options;
 
 	/** Creates or updates the route entry to the	**/
 	/** previous hop from which the control packet	**/
@@ -2238,6 +2234,8 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 		case (AODVC_ROUTE_REQUEST):
 			{
 			rreq_option_ptr = (AodvT_Rreq*) tlv_options_ptr->value_ptr;
+			//MKA 01/25/11
+			geo_lar_options = &(rreq_option_ptr->geo_lar_options);
 		
 			/* Check if the source address is the previous hop	*/
 			if (inet_address_equal (prev_hop_addr, rreq_option_ptr->src_addr))
@@ -2431,11 +2429,11 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					existing_sequence_num = aodv_geo_table_entry_sequence_number(geo_table_ptr, rreq_option_ptr->src_addr);
 					sequence_num = rreq_option_ptr->src_seq_num;
 					
-					if ( sequence_num > existing_sequence_num)
+					if ( sequence_num > existing_sequence_num )
 					{
 						printf("RREQ: updating GeoTable w. Source coordinates (%.2f, %.2f) with sequence number %d @ %.2\n", 
-												rreq_option_ptr->src_x, rreq_option_ptr->src_y, sequence_num, op_sim_time());
-						aodv_geo_table_update(geo_table_ptr, rreq_option_ptr->src_addr, rreq_option_ptr->src_x, rreq_option_ptr->src_y, sequence_num);
+												geo_lar_options->src.x, geo_lar_options->src.y, sequence_num, op_sim_time());
+						aodv_geo_table_update(geo_table_ptr, rreq_option_ptr->src_addr, geo_lar_options->src.x, geo_lar_options->src.y, sequence_num);
 					}
 					else
 					{
@@ -2443,8 +2441,8 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					}
 					
 					//We will, however, greedily update the previous node's coordinates...
-					printf("RREQ: Greedily updating the previous node's coordinates (%.2f, %.2f) @ %.2f\n", rreq_option_ptr->prev_x, rreq_option_ptr->prev_y, op_sim_time());
-					aodv_geo_table_update(geo_table_ptr, prev_hop_addr, rreq_option_ptr->prev_x, rreq_option_ptr->prev_y, 
+					printf("RREQ: Greedily updating the previous node's coordinates (%.2f, %.2f) @ %.2f\n", geo_lar_options->prev.x, geo_lar_options->prev.y, op_sim_time());
+					aodv_geo_table_update(geo_table_ptr, prev_hop_addr, geo_lar_options->prev.x, geo_lar_options->prev.y, 
 																				aodv_geo_table_entry_sequence_number(geo_table_ptr, prev_hop_addr));	
 					
 					//Note that since we're greedy, we're using the existing sequence number 
@@ -2550,6 +2548,13 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	Objid 				own_id;
 	Objid 				ppid;
 	double 				src_x, src_y, dst_x=-1, dst_y=-1;
+	
+	// MKA 01/25/11
+	// Encapsulate all Geo/LAR-specific options in one data structure.
+	AodvT_LAR_Info		geo_lar_options;
+	LAR_Data*			lar_data;	//retrieve velocity from this.
+	
+	char		address_str[INETC_ADDR_STR_LEN]; 	// The node's IP address.
 		
 	/** Broadcasts a route request message	**/
 	FIN (aodv_rte_route_request_send (<args>));
@@ -2579,12 +2584,18 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	op_ima_obj_attr_get (ppid, "x position", &src_x);
 	op_ima_obj_attr_get (ppid, "y position", &src_y);
 	
-	
+	inet_address_print(address_str, dest_addr);
 	
 	//MKA 01/08/11
 	aodv_geo_retrieve_coordinates(geo_table_ptr, geo_routing_type, dest_addr, &dst_x, &dst_y);
+	
 	printf("\nAfter pass by references destination coordinates are (%.2f, %.2f)\n\n", dst_x, dst_y);
 	
+	//MKA 01/25/11
+	//Pull LAR_Data from the global database.
+	lar_data = aodv_geo_LAR_retrieve_data(address_str);	
+	
+
 	printf("=> before request_level = %d\n", request_level);
 	// Compute the new, if necessary, request level for AODV type
 	// destination coordinates are passed by reference
@@ -2593,15 +2604,35 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	
 	printf("=> after request_level = %d\n", request_level);
 	
+	
+	//Now fill in the Geo/LAR-specific options into geo_lar_options.
+	
+	geo_lar_options.src.x 	= src_x;
+	geo_lar_options.src.y 	= src_y;
+	
+	geo_lar_options.prev.x 	= src_x;	//To start with, previous node will be the sender.
+	geo_lar_options.prev.y	= src_y;	//To start with, previous node will be the sender.
+	
+	geo_lar_options.dst.x	= dst_x;
+	geo_lar_options.dst.y	= dst_y;
+	
+	geo_lar_options.request_level	=	request_level;
+	
+	//If we aren't using LAR, lar_data will be OPC_NIL (so set velocity = 0).
+	//Otherwise, set velocity based on recorded velocity.
+	geo_lar_options.velocity		=	(lar_data == OPC_NIL? 0.0 : lar_data->velocity);
+	
+	
 	// Create RREQ to reroadcast
 	rreq_option_ptr = aodv_pkt_support_rreq_option_create_geo (
 								OPC_FALSE, OPC_FALSE,
 						   		grat_route_reply_flag, dest_only_flag,	OPC_TRUE, 0, 
 								route_request_id, dest_addr, 
 								dest_seq_num, INETC_ADDRESS_INVALID, sequence_number,
-								src_x, src_y,
+								geo_lar_options);	//MKA 01/25/11 - encapsulates all Geo/LAR options! :)
+								/*src_x, src_y,
 								dst_x, dst_y,
-								request_level);	
+								request_level);*/
 
 	
 	// MHAVH

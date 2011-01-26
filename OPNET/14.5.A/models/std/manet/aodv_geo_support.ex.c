@@ -218,7 +218,7 @@ Boolean aodv_geo_rebroadcast(
 	//Since dest_x and dest_y are -1, -1 by default when destination coordinates are unknown and -1, -1 is a valid
 	//coordinate, this check is necessary to make sure we aren't just performing the initial flooding like regular AODV.
 	
-	if (flooding_angle >= 360.0)
+	if (flooding_angle >= MAX_ANGLE)
 	{
 		//We're flooding, so you have to rebroadcast.
 	
@@ -462,7 +462,7 @@ int aodv_geo_compute_expand_flooding_angle(
 			double								dst_x, //&dst_x
 			double	 							dst_y)	//&dst_y		
 {
-	PrgT_List* 			neighbor_list;
+	//PrgT_List* 			neighbor_list;
 
 	FIN (aodv_geo_rreqsend( <args> ));
 	
@@ -494,7 +494,7 @@ int aodv_geo_compute_expand_flooding_angle(
 					//Since we don't have accurate destination coordinates, just broadcast.
 					FRET (BROADCAST_REQUEST_LEVEL);
 				}
-				
+/*				
 				// get neighbor list
 				neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
 				
@@ -515,7 +515,7 @@ int aodv_geo_compute_expand_flooding_angle(
 					// Check bigger angle
 					request_level++;
 				}
-				
+*/				
 			break;
 			
 		case AODV_TYPE_GEO_ROTATE_01:
@@ -526,7 +526,7 @@ int aodv_geo_compute_expand_flooding_angle(
 					//Since we don't have accurate destination coordinates, just broadcast.
 					FRET (BROADCAST_REQUEST_LEVEL);
 				}
-			
+/*			
 				// RJ_VH 5/20/10
 				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
 				// unless there are no neighboring nodes within that area
@@ -553,7 +553,7 @@ int aodv_geo_compute_expand_flooding_angle(
 					// This isn't the first time, so broadcast.
 					request_level = BROADCAST_REQUEST_LEVEL;
 				}
-
+*/
 				break;
 				
 		case AODV_TYPE_REGULAR:
@@ -777,23 +777,41 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family 
 // OUT:		OPC_TRUE if the node is within the request zone and OPC_FALSE otherwise.
 Boolean aodv_geo_LAR_within_request_zone(double src_x, double src_y, double curr_x, double curr_y, double dest_x, double dest_y, double radius)
 {
+
+	//The corners of the rectangular request zone: ll = lower-left, ul = upper-left, ur = upper-right, lr = lower-right. 
 	Point2D ll, ul, ur, lr;
+	
+	//The location of the current node.
 	Point2D currentLocation;
 	
+	//This is the request zone rectangle made up of the four points above.
 	Rectangle requestZone;
 	
+	//The return value for this method (whether or not the current node is contained within the request zone.
 	Boolean contained;
 	
 	FIN (aodv_geo_LAR_within_request_zone( <args> ));
 	
-	currentLocation.x = curr_x;			currentLocation.y = curr_y;
-	
+	currentLocation.x = curr_x;			
+	currentLocation.y = curr_y;
 
-	ll.x = min(src_x, dest_x - radius); ll.y = min(src_y, dest_y - radius);
-	ul.x = ll.x; 						ul.y = max(src_y, dest_y + radius);
-	ur.x = max(src_x, dest_x + radius); ur.y = ul.y;
-	lr.x = ur.x;						lr.y = ll.y;
+	//The lower-left corner of the request zone is as far left and as far down as possible.
+	ll.x = min(src_x, dest_x - radius); 
+	ll.y = min(src_y, dest_y - radius);
 	
+	//The upper-left corner of the request zone must be as far left and as far up as possible.	
+	ul.x = ll.x; 									
+	ul.y = max(src_y, dest_y + radius);
+	
+	//The upper-right corner of the request zone must be as far right and as far up as possible.
+	ur.x = max(src_x, dest_x + radius); 
+	ur.y = ul.y;
+	
+	//The lower-right corner of the request zone must be as far right and as far down as possible.	
+	lr.x = ur.x;									
+	lr.y = ll.y;
+	
+	//Encapsulate these four points into a rectangle.
 	requestZone.lower_left = ll;
 	requestZone.upper_left = ul;
 	requestZone.upper_right = ur;
