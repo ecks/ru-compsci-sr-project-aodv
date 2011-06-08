@@ -9,6 +9,9 @@
  * Author: Remo Cocco
  */
 
+#ifndef _AODV_GEO_TABLE_TEST_H
+#define _AODV_GEO_TABLE_TEST_H
+
 #include <opnet.h>
 #include <aodv.h>
 #include <aodv_ptypes.h>
@@ -31,3 +34,5 @@ InetT_Address* generate_random_InetT_Address();
 
 void aodv_geo_table_entry_exists_test(AodvT_Geo_Table*);
 void aodv_geo_table_update_test(AodvT_Geo_Table*);
+
+#endif /*_AODV_GEO_TABLE_TEST_H */
