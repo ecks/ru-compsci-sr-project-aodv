@@ -29,7 +29,7 @@ void aodv_geo_table_entry_exists_test(AodvT_Geo_Table* geo_table_ptr)
 		inett_address_helper->x = rand();
 		inett_address_helper->y = rand();
         printf("Adding IPv4 addr %d (%u)", i, inett_address_helper->inett_address->address.ipv4_addr);
-        aodv_geo_table_insert(geo_table_ptr, *inett_address_helper->inett_address, inett_address_helper->x, inett_address_helper->y);
+        aodv_geo_table_insert(geo_table_ptr, *inett_address_helper->inett_address, inett_address_helper->x, inett_address_helper->y, 0);
         //should always return true
         if (aodv_geo_table_entry_exists(geo_table_ptr, *inett_address_helper->inett_address))
         {
@@ -77,7 +77,7 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
 		inett_address_helper[i]->x = rand();
 		inett_address_helper[i]->y = rand();
 		
-		aodv_geo_table_insert(geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
+		aodv_geo_table_insert(geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y, 0);
 		
 		inet_address_print (ip_address, *inett_address_helper[i]->inett_address);	
 		//printf("Added %s with coordinate (%.0f, %.0f)\n", ip_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
@@ -95,7 +95,7 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
 			inett_address_helper[i]->x = rand();
 			inett_address_helper[i]->y = rand();
 			
-			aodv_geo_table_update (geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
+			aodv_geo_table_update (geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y, 0);
 			
 			
 			// now that we have made our update, we want to retrieve the the x and y coordinates that the table has
@@ -121,7 +121,6 @@ void aodv_geo_table_update_test(AodvT_Geo_Table* geo_table_ptr)
  * we also rely on the fact the exists was already tested, since it will be used to 
  * ensure that entries are properly removed.
  */
-#define _REMOVE_TESTS 2
 void aodv_geo_table_entry_remove_test(AodvT_Geo_Table* geo_table_ptr) {
 	int i, j;
 	InetT_Address_Helper	*inett_address_helper[_REMOVE_TESTS]; 
@@ -143,7 +142,7 @@ void aodv_geo_table_entry_remove_test(AodvT_Geo_Table* geo_table_ptr) {
 		inett_address_helper[i]->x = rand();
 		inett_address_helper[i]->y = rand();
 		
-		aodv_geo_table_insert(geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
+		aodv_geo_table_insert(geo_table_ptr, *inett_address_helper[i]->inett_address, inett_address_helper[i]->x, inett_address_helper[i]->y, 0);
 		
 		inet_address_print (ip_address, *inett_address_helper[i]->inett_address);	
 		//printf("Added %s with coordinate (%.0f, %.0f)\n", ip_address, inett_address_helper[i]->x, inett_address_helper[i]->y);
