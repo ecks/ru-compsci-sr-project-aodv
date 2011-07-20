@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4E24B589 4E24B589 1 Robinssa328M Hnatyshin 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 27e7 3                                                                                                                                                                                                                                                                                                                                                                                                   ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4E276000 4E276000 1 Robinssa328M Hnatyshin 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 27e7 3                                                                                                                                                                                                                                                                                                                                                                                                   ";
 #include <string.h>
 
 
@@ -4402,13 +4402,12 @@ static void	aodv_rte_geo_init()
 	
 	// MKA_VH 7/18/11
 	op_ima_obj_attr_get(aodv_parms_child_id, "Node Location DB", &location_data_distributed);
-	printf("\n*********************** Node Location DB is %d \n\n", location_data_distributed);
+//	printf("\n*********************** Node Location DB is %d \n\n", location_data_distributed);
 	
 	
 	// MKA 12/03/10
 	// Initialize LAR
-	if (geo_routing_type == AODV_TYPE_LAR_DISTANCE || 
-		geo_routing_type == AODV_TYPE_LAR_ZONE)
+	if ( !location_data_distributed )
 	{
 		op_intrpt_schedule_self (op_sim_time() + LAR_update_start_time, AODVC_LAR_UPDATE);
 		
