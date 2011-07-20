@@ -12,7 +12,7 @@
 
 // MKA 01/08/11
 void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr, 
-									int aodv_type, 
+									int aodv_type, Boolean location_data_distributed,
 									InetT_Address dest_addr, 
 									double* dst_x, double* dst_y);
 
@@ -35,6 +35,7 @@ int aodv_geo_compute_expand_flooding_angle(
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
+			Boolean								location_data_distributed, //MKA_VH 7/18/11
 			double								dst_x, 
 			double								dst_y);
 
