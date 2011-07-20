@@ -370,7 +370,7 @@ Boolean aodv_geo_rebroadcast(
 //			double* dst_x, double* dst_y	-	destination coordinates will be stored here.
 //
 void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr, 
-									int aodv_type, 
+									int aodv_type, Boolean location_data_distributed,
 									InetT_Address dest_addr, 
 									double* dst_x, double* dst_y)
 {
@@ -385,12 +385,22 @@ void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr,
 	*dst_x = DEFAULT_X;
 	*dst_y = DEFAULT_Y;
 	
-	switch (aodv_type)
+	
+	if (aodv_type == AODV_TYPE_REGULAR)
+	{
+		//Does not maintain coordinates!
+		return;
+	}
+	
+	/*switch (aodv_type)
 	{
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
 		case AODV_TYPE_GEO_ROTATE_01:
+	*/
+	if (location_data_distributed)	//MKA_VH 7/18/11 - if we're using a distributed database, check the geo table.
+	{
         
         	if (aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_TRUE)
 			{
@@ -407,10 +417,13 @@ void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr,
 					*dst_y = geo_entry_ptr->dst_y;
 				}
 			}
-			break;
+		//	break;
+	}
+	else	//MKA 7/18/11 - Otherwise, use the centralized database. 
+	{
 			
-		case AODV_TYPE_LAR_DISTANCE:
-		case AODV_TYPE_LAR_ZONE:
+		//case AODV_TYPE_LAR_DISTANCE:
+		//case AODV_TYPE_LAR_ZONE:
 			
 			//Get ip as a string
 			inet_address_print(ip_str, dest_addr);
@@ -428,12 +441,12 @@ void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr,
 				//This should never happen unless the interrupt updates haven't been set correctly.
 				printf("aodv_geo_retrieve_coordinates:\t ERROR! LAR_Data doesn't exist for %s! Can't set destination coordinates!\n", ip_str);
 			}
-			break;
+			//break;
 			
-		case AODV_TYPE_REGULAR:
+		/*case AODV_TYPE_REGULAR:
 		default:
 			// does NOT maintain coordinates
-			break;
+			break; */
 		
 	}
 	
@@ -443,7 +456,12 @@ void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr,
 
 
 // Purpose:	Decide to change the flooding angle based on geo table information of
-//				neighboring nodes
+//			neighboring nodes and the current request level (which is > INITIAL_REQUEST_LEVEL
+//			if the first attempt has failed).
+//
+//			If we're using a distributed system for storing location data, then this function
+//			will return BROADCAST_REQUEST_LEVEL, which means act like AODV and flood the network.
+//			
 // IN:			orig_x, orig_y -- position of the node that originated the RREQ
 //				prev_x, prev_y -- position of the node where the RREQ was received from
 //				curr_x, curr_y -- position of the node that received the RREQ
@@ -459,6 +477,7 @@ int aodv_geo_compute_expand_flooding_angle(
 			int 								request_level, 
 			AodvT_Geo_Table* 					geo_table_ptr,		
 			int	   								aodv_type,
+			Boolean								location_data_distributed, 
 			double								dst_x, //&dst_x
 			double	 							dst_y)	//&dst_y		
 {
@@ -466,7 +485,14 @@ int aodv_geo_compute_expand_flooding_angle(
 
 	FIN (aodv_geo_rreqsend( <args> ));
 	
-	
+	//MKA_VH 7/18/11 - If we're using a distributed geo table and we don't have destination coordinates,
+	// use regular AODV (broadcast).
+	if (location_data_distributed && aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
+	{
+		//Since we don't have accurate destination coordinates, just broadcast.
+		FRET (BROADCAST_REQUEST_LEVEL);
+	}
+		
 	switch(aodv_type)
 	{
 		
@@ -483,78 +509,13 @@ int aodv_geo_compute_expand_flooding_angle(
 			
 			break;
 
-			
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
-		case AODV_TYPE_GEO_ROTATE:
-
-				// MKA 01/08/11
-				if (aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
-				{
-					//Since we don't have accurate destination coordinates, just broadcast.
-					FRET (BROADCAST_REQUEST_LEVEL);
-				}
-/*				
-				// get neighbor list
-				neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
-				
-				//MKA 12/28/10
-				// I don't like break statements in while loops, so I changed it and made it less icky. :P
-				// if there is no neighbor within the flooding angle, increase it (unless the angle reaches 360 degrees).
-				while (request_level != BROADCAST_REQUEST_LEVEL && aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
-																						src_x, src_y, dst_x, dst_y) == OPC_FALSE)
-				{
-				
-//					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
-//												src_x, src_y, geo_entry_ptr->dst_x, geo_entry_ptr->dst_y)) == OPC_TRUE)
-//					{
-//						// Broadcast is NOT neeeded, request level is found
-//						break;
-//					}
-					
-					// Check bigger angle
-					request_level++;
-				}
-*/				
-			break;
-			
+		case AODV_TYPE_GEO_ROTATE:		
 		case AODV_TYPE_GEO_ROTATE_01:
-				
-				// MKA 01/08/11
-				if (aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
-				{
-					//Since we don't have accurate destination coordinates, just broadcast.
-					FRET (BROADCAST_REQUEST_LEVEL);
-				}
-/*			
-				// RJ_VH 5/20/10
-				// AODV_ROTATE_01 always starts and uses 180 degree flooding angle
-				// unless there are no neighboring nodes within that area
-			
-				// MKA 12/28/10
-				// For Geo_Rotate_01, the flooding angle will be either 180 or 360 (broadcast).
-				// get neighbor list
-				if (request_level == INITIAL_REQUEST_LEVEL)
-				{
-					// This is the initial Route discover phase. First time request level is set to 180 
-					request_level = 1; // initially flooding angle = 180 degrees
-
-					neighbor_list = inet_addr_hash_table_item_list_get(neighbor_connectivity_table, inet_address_family_get(&dest_addr));
-					
-					if ((aodv_geo_find_neighbor (geo_table_ptr, neighbor_list, request_level,	
-												src_x, src_y, dst_x, dst_y)) == OPC_FALSE)
-					{
-						// If there are no neighbors, broadcast instead?
-						request_level = BROADCAST_REQUEST_LEVEL;
-					}
-				}
-				else
-				{
-					// This isn't the first time, so broadcast.
-					request_level = BROADCAST_REQUEST_LEVEL;
-				}
-*/
-				break;
+		//MKA_VH 7/18/11 - We don't have to do anything; request_level is already incremented outside of
+		// this function upon a route discovery failure, which translates into an increased angle for GeoAODV.
+			break;
 				
 		case AODV_TYPE_REGULAR:
 		default:
@@ -564,9 +525,7 @@ int aodv_geo_compute_expand_flooding_angle(
 		
 	}
 	
-	
-	// Destination is not  in geoTable ==> BROADCAST)
-	// or request level is computed to be broadcast
+	// Return the request level (aka the "flooding angle")
 	FRET(request_level);
 
 }

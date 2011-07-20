@@ -1,5 +1,5 @@
 /* Process model C form file: aodv_rte.pr.c */
-/* Portions of this file copyright 1986-2009 by OPNET Technologies, Inc. */
+/* Portions of this file copyright 1986-2010 by OPNET Technologies, Inc. */
 
 
 /*
@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4D3FAEE0 4D3FAEE0 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4E24B589 4E24B589 1 Robinssa328M Hnatyshin 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 27e7 3                                                                                                                                                                                                                                                                                                                                                                                                   ";
 #include <string.h>
 
 
@@ -302,6 +302,9 @@ typedef struct
 	Manet_Rte_Ext_Cache_Table*			external_routes_cache_table_ptr                 ;	/* This table contains the routes external hosts (non-MANET hosts). */
 	double	                 		LAR_update_interval                             ;	/* Frequency of LAR velocity and coordinate updates */
 	double	                 		angle_padding                                   ;	/* The maximum value by which the flooding angle can be expanded for GeoExpand. */
+	Boolean	                		location_data_distributed                       ;	/* True if the node locations are obtainted via GeoTable        */
+	                        		                                                	/* False if the node locations are obtainted via centralized DB */
+	                        		                                                	/*                                                              */
 	} aodv_rte_state;
 
 #define module_data_ptr         		op_sv_ptr->module_data_ptr
@@ -356,6 +359,7 @@ typedef struct
 #define external_routes_cache_table_ptr		op_sv_ptr->external_routes_cache_table_ptr
 #define LAR_update_interval     		op_sv_ptr->LAR_update_interval
 #define angle_padding           		op_sv_ptr->angle_padding
+#define location_data_distributed		op_sv_ptr->location_data_distributed
 
 /* These macro definitions will define a local variable called	*/
 /* "op_sv_ptr" in each function containing a FIN statement.	*/
@@ -2587,7 +2591,8 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	inet_address_print(address_str, dest_addr);
 	
 	//MKA 01/08/11
-	aodv_geo_retrieve_coordinates(geo_table_ptr, geo_routing_type, dest_addr, &dst_x, &dst_y);
+	//MKA_VH 07/18/11 - Passing in whether or not we're using geo tables. 
+	aodv_geo_retrieve_coordinates(geo_table_ptr, geo_routing_type, location_data_distributed, dest_addr, &dst_x, &dst_y);
 	
 	printf("\nAfter pass by references destination coordinates are (%.2f, %.2f)\n\n", dst_x, dst_y);
 	
@@ -2599,8 +2604,9 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	printf("=> before request_level = %d\n", request_level);
 	// Compute the new, if necessary, request level for AODV type
 	// destination coordinates are passed by reference
+		//MKA_VH 07/18/11 - Passing in whether or not we're using geo tables. 
 	request_level = aodv_geo_compute_expand_flooding_angle(neighbor_connectivity_table, dest_addr, src_x, src_y, 
-														   request_level, geo_table_ptr, geo_routing_type, dst_x, dst_y); 
+														   request_level, geo_table_ptr, geo_routing_type, location_data_distributed, dst_x, dst_y); 
 	
 	printf("=> after request_level = %d\n", request_level);
 	
@@ -4394,6 +4400,11 @@ static void	aodv_rte_geo_init()
 	// Attribute for GeoExpand.
 	op_ima_obj_attr_get(aodv_parms_child_id, "GeoExpand Angle Padding", &angle_padding);
 	
+	// MKA_VH 7/18/11
+	op_ima_obj_attr_get(aodv_parms_child_id, "Node Location DB", &location_data_distributed);
+	printf("\n*********************** Node Location DB is %d \n\n", location_data_distributed);
+	
+	
 	// MKA 12/03/10
 	// Initialize LAR
 	if (geo_routing_type == AODV_TYPE_LAR_DISTANCE || 
@@ -4680,6 +4691,7 @@ _op_aodv_rte_terminate (OP_SIM_CONTEXT_ARG_OPT)
 #undef external_routes_cache_table_ptr
 #undef LAR_update_interval
 #undef angle_padding
+#undef location_data_distributed
 
 #undef FIN_PREAMBLE_DEC
 #undef FIN_PREAMBLE_CODE
@@ -4994,6 +5006,11 @@ _op_aodv_rte_svar (void * gen_ptr, const char * var_name, void ** var_p_ptr)
 	if (strcmp ("angle_padding" , var_name) == 0)
 		{
 		*var_p_ptr = (void *) (&prs_ptr->angle_padding);
+		FOUT
+		}
+	if (strcmp ("location_data_distributed" , var_name) == 0)
+		{
+		*var_p_ptr = (void *) (&prs_ptr->location_data_distributed);
 		FOUT
 		}
 	*var_p_ptr = (void *)OPC_NIL;
