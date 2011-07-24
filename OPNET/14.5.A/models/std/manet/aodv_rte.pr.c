@@ -1,5 +1,5 @@
 /* Process model C form file: aodv_rte.pr.c */
-/* Portions of this file copyright 1986-2010 by OPNET Technologies, Inc. */
+/* Portions of this file copyright 1986-2009 by OPNET Technologies, Inc. */
 
 
 /*
@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4E276000 4E276000 1 Robinssa328M Hnatyshin 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 27e7 3                                                                                                                                                                                                                                                                                                                                                                                                   ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4E2B7236 4E2B7236 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
 #include <string.h>
 
 
@@ -2392,13 +2392,19 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 	
 	
 	// HAVMR - 08/03/09 - update geo table with coordinates of the from RREQ or RREP
-	switch(geo_routing_type)
+/*	switch(geo_routing_type)
 	{
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
 		case AODV_TYPE_GEO_ROTATE_01:
-			// Update GeoTable
+*/
+	
+	//MKA 07/23/11 - If we're using a distributed location database, we have to update the geo table, regardless of protocol
+	//(unless you're AODV. Nobody likes you, AODV; you suck.).
+	if (geo_routing_type != AODV_TYPE_REGULAR && location_data_distributed)
+	{
+		// Update GeoTable
 			switch (tlv_options_ptr->type)
 			{
 				case AODVC_HELLO:
@@ -2458,14 +2464,14 @@ aodv_rte_route_table_entry_update (IpT_Dgram_Fields* ip_dgram_fd_ptr, IpT_Rte_In
 					// I dunno what this is. So I'm not doing anything to the GeoTable.
 					break;
 			}
-		
+/*		
 		case AODV_TYPE_LAR_DISTANCE:
 		case AODV_TYPE_LAR_ZONE:
 		case AODV_TYPE_REGULAR:
 		default:
 			// does NOT maintain coordinates
 			break;
-		
+*/		
 	}
 	// End VHMR 08/03/09
 	
@@ -2507,17 +2513,22 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 	
 	// HAVMR - 03/17/09 - update geo table with coordinates of the neighbor
 	// VHMR 
-	switch(geo_routing_type)
+/*	switch(geo_routing_type)
 	{
 		case AODV_TYPE_GEO_STATIC:
 		case AODV_TYPE_GEO_EXPAND:
 		case AODV_TYPE_GEO_ROTATE:
 		case AODV_TYPE_GEO_ROTATE_01:
+*/
+	//MKA 07/23/11 - If we're using a distributed location database, we have to update the geo table, regardless of protocol
+	//(unless you're AODV. Nobody likes you, AODV; you suck.).
+	if (geo_routing_type != AODV_TYPE_REGULAR && location_data_distributed)
+	{
 			// Update GeoTable
 			aodv_geo_table_update(geo_table_ptr, prev_hop_addr,((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_x,
 									((AodvT_Rrep*) tlv_options_ptr->value_ptr)->dst_y,
 									sequence_num);
-			break;
+/*			break;
 			
 		case AODV_TYPE_LAR_DISTANCE:
 		case AODV_TYPE_LAR_ZONE:
@@ -2525,7 +2536,7 @@ aodv_rte_route_table_entry_from_hello_update (IpT_Dgram_Fields* ip_dgram_fd_ptr,
 		default:
 			// does NOT maintain coordinates
 			break;
-		
+*/		
 	}
 	
 	FOUT;
@@ -4402,20 +4413,33 @@ static void	aodv_rte_geo_init()
 	
 	// MKA_VH 7/18/11
 	op_ima_obj_attr_get(aodv_parms_child_id, "Node Location DB", &location_data_distributed);
-//	printf("\n*********************** Node Location DB is %d \n\n", location_data_distributed);
+	printf("\n*********************** Node Location DB is %d \n\n", location_data_distributed);
 	
 	
-	// MKA 12/03/10
-	// Initialize LAR
-	if ( !location_data_distributed )
-	{
-		op_intrpt_schedule_self (op_sim_time() + LAR_update_start_time, AODVC_LAR_UPDATE);
+	// MKA 12/03/10, 07/23/11
+	// Initialize location databases
+	if ( geo_routing_type != AODV_TYPE_REGULAR )
+	{	
+		if (!location_data_distributed )
+		{
+			op_intrpt_schedule_self (op_sim_time() + LAR_update_start_time, AODVC_LAR_UPDATE);
 		
-		aodv_geo_LAR_init( module_data_ptr, aodv_addressing_mode, x, y );
+			aodv_geo_LAR_init( module_data_ptr, aodv_addressing_mode, x, y );
+#ifdef LAR_DEBUG
+			printf(" ========= INITIALIZED CENTRALIZED DATABASE ===========\n");
+#endif
+		}
+		else
+		{
+#ifdef LAR_DEBUG
+			printf(" ========= INITIALIZED DISTRIBUTED DATABASE ===========\n");
+#endif
+		}
 	}
-	// Create GeoTable
-	geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
-	
+		//MKA 07/23/11 - TODO For circumstances beyond my control (it's too much work to fix in the current code),
+		// The geo table is always created, whether we're using distributed or centralized.
+			// Create GeoTable
+			geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
 
 	FOUT;
 }

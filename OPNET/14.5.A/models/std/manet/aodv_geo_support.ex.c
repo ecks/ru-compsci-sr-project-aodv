@@ -389,7 +389,7 @@ void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr,
 	if (aodv_type == AODV_TYPE_REGULAR)
 	{
 		//Does not maintain coordinates!
-		return;
+		FOUT;
 	}
 	
 	/*switch (aodv_type)
@@ -415,6 +415,10 @@ void aodv_geo_retrieve_coordinates(AodvT_Geo_Table* geo_table_ptr,
                 	// Set destination coordinates
                 	*dst_x = geo_entry_ptr->dst_x;
 					*dst_y = geo_entry_ptr->dst_y;
+				}
+				else
+				{
+					printf("aodv_geo_retrieve_coordinates:\t ERROR! geoTable doesn't exist! Can't set destination coordinates!\n");
 				}
 			}
 		//	break;
@@ -487,7 +491,8 @@ int aodv_geo_compute_expand_flooding_angle(
 	
 	//MKA_VH 7/18/11 - If we're using a distributed geo table and we don't have destination coordinates,
 	// use regular AODV (broadcast).
-	if (location_data_distributed && aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE)
+	if (aodv_type == AODV_TYPE_REGULAR ||
+		(location_data_distributed && aodv_geo_table_entry_exists(geo_table_ptr, dest_addr) == OPC_FALSE))
 	{
 		//Since we don't have accurate destination coordinates, just broadcast.
 		FRET (BROADCAST_REQUEST_LEVEL);
