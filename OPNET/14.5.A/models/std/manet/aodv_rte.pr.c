@@ -1,5 +1,5 @@
 /* Process model C form file: aodv_rte.pr.c */
-/* Portions of this file copyright 1986-2009 by OPNET Technologies, Inc. */
+/* Portions of this file copyright 1986-2010 by OPNET Technologies, Inc. */
 
 
 /*
@@ -15,7 +15,7 @@
 
 
 /* This variable carries the header into the object file */
-const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4E2B7236 4E2B7236 1 Robilablap-00 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 277a 1                                                                                                                                                                                                                                                                                                                                                                                                    ";
+const char aodv_rte_pr_c [] = "MIL_3_Tfile_Hdr_ 160A 30A modeler 7 4F36E9AA 4F36E9AA 1 j2 student 0 0 none none 0 0 none 0 0 0 0 0 0 0 0 2871 6                                                                                                                                                                                                                                                                                                                                                                                                               ";
 #include <string.h>
 
 
@@ -157,6 +157,20 @@ static Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* 	_geo_table_ptr,
 const double PI = 3.141592653589793238462643383279502884197169399375;
 const double MAX_ANGLE = 360;
 */
+	/* 11/15/11 RC Added to Debugging, should probably be in another file */
+#include <time.h>
+static FILE *logFile;
+#define LOG_FILE_NAME_SIZE 128
+
+static void geo_debug_log_init(void);
+static void geo_debug_log(int sequence_num,
+						  char *current_name,
+		                  char *orig_ip_address,
+						  char *prev_ip_address,
+  						  int ttl,
+						  float prev_x, float prev_y, 
+						  float x,      float y,
+						  float dest_x, float dest_y);
 #endif
 
 /* End of Header Block */
@@ -383,6 +397,9 @@ aodv_rte_sv_init (void)
 	{	
 	/** Initialize the state variables	 **/
 	FIN (aodv_rte_sv_init (void));
+	
+	/* 11/15/11 RC Log */
+	geo_debug_log_init();
 	
 	/* Access the module data memory	*/
 	module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
@@ -1036,6 +1053,7 @@ aodv_rte_app_pkt_arrival_handle (Packet* ip_pkptr, IpT_Dgram_Fields* ip_dgram_fd
 			// HAVH 12/26/08 - if the user wants no geo routing, we broadcast every time
 			// HAVH 6/26/08
 			// RJ_VH 5/20/10
+			printf("$$$$ inside aodv_rte_app_pkt_arrival_handle -- route unknown\n");
 			aodv_rte_route_request_send (route_entry_ptr, ip_dgram_fd_ptr->dest_addr, 
 										 ttl_value, ring_traversal_time, 0, INITIAL_REQUEST_LEVEL);
 
@@ -1077,6 +1095,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	
 	// MHAVH 11/04/08 - temporary var to print IP address
 	char 					tmp_ip_addr[INETC_ADDR_STR_LEN];
+	char 					prev_ip_addr[INETC_ADDR_STR_LEN];
 	char					name[256];
 	Objid					own_id;
 	Objid					ppid;
@@ -1109,9 +1128,9 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	/* from the actual source node, the output interface	*/
 	/* address is not known as it is broadcast.				*/
 	if (rreq_option_ptr->hop_count == 0)
-		{
+	{
 		rreq_option_ptr->src_addr = inet_address_copy (prev_hop_addr);
-		}
+	}
 	
 	
 	// MHAVH 11/04/08
@@ -1125,6 +1144,7 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 	op_ima_obj_attr_get (ppid, "y position", &curr_y);
 	
 	inet_address_print(tmp_ip_addr , rreq_option_ptr->src_addr);
+	inet_address_print(prev_ip_addr , ip_dgram_fd_ptr->src_addr);
 	
 	// DEBUG*********************
 	printf("  ************** RREQ from %s arrived at %s (%.2f, %.2f)\n", tmp_ip_addr, name, curr_x, curr_y);
@@ -1133,6 +1153,16 @@ aodv_rte_rreq_pkt_arrival_handle (Packet* ip_pkptr, Packet* aodv_pkptr, IpT_Dgra
 			geo_lar_options->src.x, geo_lar_options->src.y, 
 			geo_lar_options->dst.x, geo_lar_options->dst.y, 
 			(geo_lar_options->request_level+1)*90, op_sim_time());	
+	
+	
+	geo_debug_log(rreq_option_ptr->src_seq_num,
+				  name,						// this node's name
+		          tmp_ip_addr,				// originator
+				  prev_ip_addr,             // prev node IP
+				  ip_dgram_fd_ptr->ttl,     // ttl
+			      geo_lar_options->src.x, geo_lar_options->src.y, 
+				  curr_x, curr_y,
+				  geo_lar_options->dst.x, geo_lar_options->dst.y);
 	
 
 	// Update GeoTable with fresher originating node information
@@ -2149,6 +2179,15 @@ aodv_rte_data_routes_expiry_time_update (Packet* dgram_pkptr)
 	AodvT_Route_Entry*		prev_hop_route_entry_ptr;
 	AodvT_Route_Entry*		next_hop_route_entry_ptr;
 	
+	// VHRC 1/21/11
+	char src_str[256];
+	char dst_str[256];
+	char prev_hop_str[256];
+	char next_hop_str[256];
+	char name[256];
+	Objid own_id, ppid;
+	
+	
 	/** This function is called when we are invoked by IP	**/
 	/** when it routes a data packet using one of our		**/
 	/** active routes to update expiry time of the route	**/
@@ -2197,6 +2236,22 @@ aodv_rte_data_routes_expiry_time_update (Packet* dgram_pkptr)
 			aodv_route_table_entry_expiry_time_update (next_hop_route_entry_ptr, next_hop_addr, 
 													   route_table_ptr->route_expiry_time, AODVC_ROUTE_ENTRY_INVALID);
 		}
+	
+	
+	// Debugging		
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get (ppid, "name", &name);
+
+	inet_address_print(src_str, src_addr);
+	inet_address_print(dst_str, dest_addr);
+	inet_address_print(prev_hop_str, prev_hop_addr);
+	inet_address_print(next_hop_str, next_hop_addr);
+	
+	
+	printf("%4.4f - Updating routing entries in %s for (prev_hop = %s) (src = %s) (next hop = %s) (dest = %s)\n", op_sim_time(),
+		name, prev_hop_str, src_str, next_hop_str, dst_str);
+
 	
 	FOUT;
 	}
@@ -2592,7 +2647,6 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	// MHAVH 16/10/08 get the x and y position of the source node
 	// VHMR 08/03/09
 	// debug
-	printf("***Creating RREQ with src_sequence number [%d] and ttl of [%d] @ %.4f\n", sequence_number, ttl_value, op_sim_time());
 	
 	own_id = op_id_self();
 	ppid = op_topo_parent(own_id);
@@ -2605,21 +2659,23 @@ aodv_rte_route_request_send (AodvT_Route_Entry* route_entry_ptr, InetT_Address d
 	//MKA_VH 07/18/11 - Passing in whether or not we're using geo tables. 
 	aodv_geo_retrieve_coordinates(geo_table_ptr, geo_routing_type, location_data_distributed, dest_addr, &dst_x, &dst_y);
 	
-	printf("\nAfter pass by references destination coordinates are (%.2f, %.2f)\n\n", dst_x, dst_y);
+	printf("***Creating RREQ: src_seq# [%d] ttl of [%d] dest_IP [%s]  (%.2f, %.2f) @ %.4f\n", 
+				sequence_number, ttl_value, address_str, dst_x, dst_y, op_sim_time());
+//	printf("\nAfter pass by references destination coordinates are (%.2f, %.2f)\n\n", dst_x, dst_y);
 	
 	//MKA 01/25/11
 	//Pull LAR_Data from the global database.
 	lar_data = aodv_geo_LAR_retrieve_data(address_str);	
 	
 
-	printf("=> before request_level = %d\n", request_level);
+	//printf("=> before request_level = %d\n", request_level);
 	// Compute the new, if necessary, request level for AODV type
 	// destination coordinates are passed by reference
 		//MKA_VH 07/18/11 - Passing in whether or not we're using geo tables. 
 	request_level = aodv_geo_compute_expand_flooding_angle(neighbor_connectivity_table, dest_addr, src_x, src_y, 
 														   request_level, geo_table_ptr, geo_routing_type, location_data_distributed, dst_x, dst_y); 
 	
-	printf("=> after request_level = %d\n", request_level);
+	printf("=> request_level = %d\n", request_level);
 	
 	
 	//Now fill in the Geo/LAR-specific options into geo_lar_options.
@@ -3684,7 +3740,9 @@ aodv_rte_entry_expiry_handle (void* route_entry_vptr, int code)
 	dest_addr = ip_cmn_rte_table_dest_prefix_addr_get (route_entry_ptr->dest_prefix);
 	
 	if(code == AODVC_ROUTE_ENTRY_INVALID)
-		{		
+		{
+		/* RCVH 12/1
+		
 		if (LTRACE_ACTIVE)
 			{
 			op_prg_odb_print_major(OPC_NIL);
@@ -3836,9 +3894,14 @@ aodv_rte_rreq_timer_expiry_handle (void* rreq_id_ptr1, int PRG_ARG_UNUSED(code))
 			request_entry_ptr->num_retries = 0;
 			request_entry_ptr->request_level++;
 	
+			
+			// VHRC, 12/1/11
+			printf("$$$$ Inside of aodv_rte_rreq_timer_expiry_handle -- Request level is not broadcast\n"); 
+		
 			aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
 									 request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
 													request_entry_ptr->request_level);
+				
 			// case our GEOAODV_ROTATE_01
 			//aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
 			//						 			request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
@@ -3899,6 +3962,9 @@ aodv_rte_rreq_timer_expiry_handle (void* rreq_id_ptr1, int PRG_ARG_UNUSED(code))
 		request_entry_ptr->num_retries++;
 			
 		// MHAVH 13/11/08 - send a route request with the current request level, since the max number of rreq retries hasn't been reached
+		// VHRC, 12/1/11
+		printf("$$$$ Inside of aodv_rte_rreq_timer_expiry_handle -- Expanding Ring Search\n"); 
+		
 		aodv_rte_route_request_send (aodv_route_table_entry_get (route_table_ptr, request_entry_ptr->target_address), 
 									 request_entry_ptr->target_address, new_ttl_value, ring_traversal_time, request_entry_ptr->num_retries,
 													request_entry_ptr->request_level);
@@ -3961,6 +4027,9 @@ aodv_rte_local_repair_attempt (InetT_Address dest_addr, AodvT_Route_Entry* route
 	/* Broadcast a route request	*/
 	
 	// MHAVH 13/11/08 - broadcast a route request, since we want to have a default value for when local repair exists
+	// VHRC, 12/1/11
+	printf("$$$$ aodv_rte_local_repair_attempt\n"); 
+		
 	aodv_rte_route_request_send (route_entry_ptr, dest_addr, ttl_value, ring_traversal_time, 0, BROADCAST_REQUEST_LEVEL);
 	// END MHAVH
 	
@@ -4442,6 +4511,70 @@ static void	aodv_rte_geo_init()
 			geo_table_ptr = aodv_geo_table_create(aodv_addressing_mode);
 
 	FOUT;
+}
+
+/* 11/15/11 RC Added to Debugging, should probably be in another file */
+static void geo_debug_log_init(void)
+{
+	char fileName[LOG_FILE_NAME_SIZE];
+	size_t size;
+	struct tm tme;
+	
+	
+	time_t now;
+	now = time(NULL);
+	tme = *(localtime(&now));
+	/* need a better way to find any user's home dir */
+	//size = strftime(fileName, LOG_FILE_NAME_SIZE, "C:\\Documents and Settings\\student\\%Y_%m_%d_%H:%M:%S_geoAODV.log", &tme);
+	size = strftime(fileName, LOG_FILE_NAME_SIZE, "C:\\Documents and Settings\\student\\geoAODV.log", &tme);
+
+
+	printf("File path is %s\n", fileName);
+	
+	logFile = fopen(fileName, "w");
+	
+	if (logFile == NULL) 
+	{
+		printf("Could not open log file: %s\n", fileName);
+	}
+	else
+	{
+		fprintf(logFile, "************************************************************\n");
+		fprintf(logFile, "%s\n", fileName);
+	}
+}
+
+static void geo_debug_log(int sequence_num,
+						  char *current_name,
+		                  char *orig_ip_address,
+						  char *prev_ip_address,
+						  int ttl,
+						  float prev_x, float prev_y, 
+						  float x,      float y,
+						  float dest_x, float dest_y) 
+{
+	/* Start with an invalid sequence */
+	static int current_sequence_num = -1;
+
+	if (!logFile) return;
+
+	/* Here we just want a new line everytime the seq num changes */
+	if (sequence_num != current_sequence_num)
+	{
+		current_sequence_num = sequence_num;
+		fprintf(logFile, "\n");
+	}
+
+	fprintf(logFile, "%.3f - [#%02d from %s] -- HOP(%s to %s)  ttl = %2d prev = (% 5.02f, % 5.02f) curr = (% 5.02f, % 5.02f) dest = (% 5.02f, % 5.02f)\n",
+			op_sim_time(),
+			sequence_num,
+			orig_ip_address,
+			prev_ip_address,
+			current_name,
+			ttl,
+			prev_x, prev_y,
+			x, y,
+			dest_x, dest_y);
 }
 
 /* End of Function Block */
