@@ -14,6 +14,13 @@ const double MAX_ANGLE = 360;
 // change all the method signatures and pass it around, so I figured this
 // would be easier.
 static InetT_Addr_Family aodv_addressing_mode;
+
+/* RC 2012/02/09 - Function for recording statistics for 
+ * the amount of error in the locations stored in the geo table.
+ * This will enable us to see how accurate the information is in the 
+ * geo table.
+ */
+static void aodv_geo_record_location_information_statistics(void);
 			   
 // Purpose:	 Compute the length of the vector
 // IN:	    	 start_x, start_y -- starting point of the vector
@@ -578,6 +585,8 @@ void print_lar_data(LAR_Data *lar_data)
 // TODO RC 11/22/2010 We need to ensure that this only runs when 
 // LAR is active, i.e it shouldn't running unless it's needed.
 // Maybe we can alter our interupt condition to include this.
+// TODO RC 2012/02/09 - I amend my above todo now that his 
+// Method handles statistics collections to.
 //
 // MKA 11/23/10	Finished implementing interrupt.
 // NOTE: This function assumes that an entry exists in the global
@@ -651,6 +660,9 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 	print_lar_data(lar_data);
 #endif
 
+	/* RC 2012/02/09 - record statistics for location information */
+	aodv_geo_record_location_information_statistics();	
+	
 	//Schedule the next interrupt.
 	op_intrpt_schedule_self (op_sim_time () + update_interval, AODVC_LAR_UPDATE);
 
@@ -838,4 +850,87 @@ Boolean aodv_geo_LAR_is_point_contained(Point2D *location, Rectangle *zone)
 LAR_Data* aodv_geo_LAR_retrieve_data(char* ip)
 {
 	return (LAR_Data*) oms_data_def_entry_access(LAR_OMS_CATEGORY, ip);
+}
+
+/* RC 2012/02/09
+ *
+ * Purpose: Function for recording statistics for 
+ *          the amount of error in the locations stored in the geo table.
+ *          This will enable us to see how accurate the information is in the 
+ *          geo table.
+ * IN:
+ * OUT:     void
+ */
+static void aodv_geo_record_location_information_statistics(void) {
+	/* 2012/02/08 RC - Adding code to collect statistics for the accuracy of coordinates in the routing table
+	 * The CSV file will tentatively have each row with values: time and location errer for each node (need to clarify how this will be done
+	 * i.e the case when no route is stored). Therefor we need to pass it. */
+	
+	/* The basic idea here is to dump all of the entries in the this nodes routing table (need to edit the geo_table data
+     * impl so that we can do this, need to figure out how inet_addr_hash_table_item_insert) and see how it matches
+	 * to each entry in the global database. We also need to check to make sure that the global database isn't 
+	 * being used. */
+	
+	/* Psuedo code for this idea */
+	/*
+	foreach entry e in global _table(all the nodes):
+		get the geo tables entry for e
+		compare e to what is in the routing table
+		record the statistics
+	*/
+
+	/* Below is an attpemt to  find all of the nodes in the network 
+	 * See the documentation for op_topo_child() */
+
+
+	char address_str[INETC_ADDR_STR_LEN];
+	char node_name[OMSC_HNAME_MAX_LEN];
+	int i, node_count;
+	Objid node_id, subnet_id, attr_id;
+	
+	/* Used to retreive data from the centrailized database of coordinates */
+	void*		data;					//Generic data storage pointer for when LAR_Data is retrieved from the database.
+	LAR_Data*	lar_data;				//The data stored in the database
+	IpT_Rte_Module_Data* module_data_ptr;		// The module data to use.	
+	
+	FIN (aodv_geo_record_location_information_statistics( <args> ));
+
+	
+	/* Set unique user ID's of the nodes in parent subnet. */
+	/* First obtain the subnet object ID. */
+	node_id = op_topo_parent (op_id_self ());
+	subnet_id = op_topo_parent (node_id);
+	/* Determine the number of children that are nodes. */
+	node_count = op_topo_child_count (subnet_id, OPC_OBJMTYPE_NODE);
+		
+	module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
+	
+	printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+
+	/* Loop through the child nodes and set unique user ID's. */
+	for (i = 0; i < node_count; i++) {
+		node_id = op_topo_child (subnet_id, OPC_OBJMTYPE_NODE, i);
+		op_ima_obj_attr_get (node_id, "name", &node_name);
+		attr_id = op_id_from_name(node_id, 	OPC_OBJTYPE_PROC, "ip");
+		op_ima_obj_attr_get (attr_id, "IP", &address_str);
+
+		
+		
+		
+		//get_node_ip(address_str, module_data_ptr, 0);
+		//data = oms_data_def_entry_access(LAR_OMS_CATEGORY, address_str);
+		//op_ima_obj_attr_get (node_id, "IP", &attr_id);
+		
+		printf("Found node %s\n", node_name);
+		/*
+		if (data != OPC_NIL) {
+			lar_data = (LAR_Data*) data;
+			printf("Found coordinates: (%d, %d)\n", lar_data->x, lar_data->y);
+		}
+		*/
+	}
+	
+	printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+	
+	FOUT;
 }
