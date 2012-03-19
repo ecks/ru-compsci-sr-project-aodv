@@ -1,5 +1,6 @@
 
 require 'Coordinate.rb' 
+require 'CentralDatabaseEntry'
 
 class DataProcessor
 
@@ -7,12 +8,52 @@ class DataProcessor
     @@DISTRUBUTED_STATISTIC_FLAG = "TABLE"
 
     def initialize(fileName)
-        @file = File.new(fileName, "r")
+        @fileName = fileName
+        @centralizedData = Array.new()
         processCentralizedDatabaseData()
     end
 
+    def to_s()
+        return @centralizedData.to_s()
+    end
+
+    def getActualCoordinateFor(time, destinationIPAddress)
+        #puts "Searching for #{destinationIPAddress} at #{time}"
+        @centralizedData.each do | datum |
+            if datum.isEntryFor(time, destinationIPAddress)
+                return datum
+            end
+        end
+
+        return nil
+    end
+
+    def processDistrubutedData()
+        file = File.new(@fileName, "r")
+        @outFile = File.new(@fileName.gsub(/\.csv$/, ".out.csv"), "w")
+        file.each_line("\n") do | row |
+            row = row.gsub(/\s/,  '')
+            columns = row.split(",")
+            entryType = columns[0]
+
+            time = columns[1]
+
+            if entryType == @@DISTRUBUTED_STATISTIC_FLAG
+                thisNodeName = columns[2]
+                destinationIPAddress = columns[3]
+                destinationCoordinates = Coordinate.new(columns[4], columns[5])
+                storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates)
+            end
+        end
+
+        @outFile.close()
+    end
+
+    private
+
     def processCentralizedDatabaseData()
-        @file.each_line("\n") do | row |
+        file = File.new(@fileName, "r")
+        file.each_line("\n") do | row |
             row = row.gsub(/\s/,  '')
             columns = row.split(",")
             entryType = columns[0]
@@ -20,7 +61,7 @@ class DataProcessor
             time = columns[1]
             #puts "Time = " + time
 
-            if entryType == CENTRAL_STATISTIC_FLAG
+            if entryType == @@CENTRAL_STATISTIC_FLAG
                 thisIPAddress = columns[2]
                 destinationCoordinates = Coordinate.new(columns[3], columns[4])
                 storeCentralizedDatabaseData(time, thisIPAddress, destinationCoordinates)
@@ -30,18 +71,18 @@ class DataProcessor
     end
 
     def storeCentralizedDatabaseData(time, thisIPAddress, destinationCoordinates) 
-        puts "Storing coordinates for #{destinationCoordinates} for #{thisIPAddress} at #{time}"
-    end
-
-    def getActualCoordinateFor(time, destinationIPAddress)
+        datum = CentralDatabaseEntry.new(thisIPAddress, time, destinationCoordinates)
+        @centralizedData << datum
     end
 
     def storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates)
-        #puts "getActualCoordinateFor(#{time}, #{destinationIPAddress})"
-        #puts "Store statistics for #{thisNodeName} for entry of #{destinationIPAddress} with #{destinationCoordinates} at #{time}"
-    end
+        datum = getActualCoordinateFor(time, destinationIPAddress)
 
-    def to_s()
-        "#{@file}"
+        if datum != nil
+            puts "Store statistics for #{thisNodeName} for entry of #{destinationIPAddress} with #{destinationCoordinates} at #{time}"
+            puts "\t#{datum}"
+            distance = destinationCoordinates.distance(datum.coordinates)
+            @outFile.write("#{time}, #{thisNodeName}, #{destinationIPAddress}, #{distance}\n")
+        end
     end
 end
