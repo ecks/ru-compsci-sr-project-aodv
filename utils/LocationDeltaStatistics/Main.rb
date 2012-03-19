@@ -5,6 +5,6 @@ require 'DataProcessor.rb'
 
 ARGV.each do | fileName | 
     dataProcessor = DataProcessor.new(fileName)
-    puts dataProcessor
+    dataProcessor.processDistrubutedData()
 end
 
