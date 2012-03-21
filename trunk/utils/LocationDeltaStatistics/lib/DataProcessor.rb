@@ -30,7 +30,7 @@ class DataProcessor
 
     def processDistrubutedData()
         file = File.new(@fileName, "r")
-        @outFile = File.new(@fileName.gsub(/\.csv$/, ".out.csv"), "w")
+        @outFile = File.new(@fileName.gsub(/\.csv$/, ".processed.csv"), "w")
         file.each_line("\n") do | row |
             row = row.gsub(/\s/,  '')
             columns = row.split(",")
