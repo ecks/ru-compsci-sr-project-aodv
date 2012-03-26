@@ -9,7 +9,7 @@ class DataProcessor
 
     def initialize(fileName)
         @fileName = fileName
-        @centralizedData = Array.new()
+        @centralizedData = Hash.new
         processCentralizedDatabaseData()
     end
 
@@ -18,19 +18,15 @@ class DataProcessor
     end
 
     def getActualCoordinateFor(time, destinationIPAddress)
-        #puts "Searching for #{destinationIPAddress} at #{time}"
-        @centralizedData.each do | datum |
-            if datum.isEntryFor(time, destinationIPAddress)
-                return datum
-            end
-        end
-
-        return nil
+        return @centralizedData["#{time}:#{destinationIPAddress}"]
     end
 
     def processDistrubutedData()
         file = File.new(@fileName, "r")
-        @outFile = File.new(@fileName.gsub(/\.csv$/, ".processed.csv"), "w")
+        outFileName = @fileName.gsub(/\.csv$/, ".processed.csv")
+        puts "Processing distributed data for #{@fileName}"
+        puts "Storing results in #{outFileName}"
+        @outFile = File.new(outFileName, "w")
         file.each_line("\n") do | row |
             row = row.gsub(/\s/,  '')
             columns = row.split(",")
@@ -52,6 +48,7 @@ class DataProcessor
     private
 
     def processCentralizedDatabaseData()
+        puts "Processing centralized data for #{@fileName}"
         file = File.new(@fileName, "r")
         file.each_line("\n") do | row |
             row = row.gsub(/\s/,  '')
@@ -71,16 +68,15 @@ class DataProcessor
     end
 
     def storeCentralizedDatabaseData(time, thisIPAddress, destinationCoordinates) 
-        datum = CentralDatabaseEntry.new(thisIPAddress, time, destinationCoordinates)
-        @centralizedData << datum
+        @centralizedData["#{time}:#{thisIPAddress}"] = CentralDatabaseEntry.new(thisIPAddress, time, destinationCoordinates)
     end
 
     def storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates)
         datum = getActualCoordinateFor(time, destinationIPAddress)
 
         if datum != nil
-            puts "Store statistics for #{thisNodeName} for entry of #{destinationIPAddress} with #{destinationCoordinates} at #{time}"
-            puts "\t#{datum}"
+            #puts "Store statistics for #{thisNodeName} for entry of #{destinationIPAddress} with #{destinationCoordinates} at #{time}"
+            #puts "\t#{datum}"
             distance = destinationCoordinates.distance(datum.coordinates)
             @outFile.write("#{time}, #{thisNodeName}, #{destinationIPAddress}, #{distance}\n")
         end
