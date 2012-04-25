@@ -2,7 +2,7 @@ class Coordinate
     attr_accessor :x, :y
 
     def initialize(x = 0,  y = 0)
-        @x, @y = x.to_i, y.to_i
+        @x, @y = x.to_f, y.to_f
     end
 
     def distance(coordinate) 
