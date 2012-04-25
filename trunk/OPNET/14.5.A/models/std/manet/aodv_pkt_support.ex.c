@@ -210,6 +210,7 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	Objid						own_id;
 	Objid						ppid;
 	char						name[256];
+	char						tmp_ip_addr[INETC_ADDR_STR_LEN];
 	
 	/** Creates the route reply option	**/
 	FIN (aodv_pkt_support_rrep_option_create (<args>));
@@ -235,10 +236,16 @@ aodv_pkt_support_rrep_option_create_geo (Boolean repair, Boolean ack_required, i
 	ppid = op_topo_parent(own_id);
 	op_ima_obj_attr_get(ppid, "name", &name);
 	
-	//printf("RREP:(%.f, %.f), %.f\n", 
-	//		 dst_x, dst_y, op_sim_time());
-	//inet_address_print(tmp_ip_addr, rrep_option_ptr->dest_addr);
-	//printf("  * created with dest_addr of %s by %s\n", tmp_ip_addr, name);
+	inet_address_print(tmp_ip_addr, rrep_option_ptr->dest_addr);
+	if (type == AODVC_HELLO)
+	{
+		printf("%f %s: HELLO RREP:(%f, %f) from %s (%p) \n", 
+			 op_sim_time(), name, dst_x, dst_y, tmp_ip_addr, rrep_option_ptr);
+	} 
+	else {
+		printf("%f %s: RREP:(%f, %f) from %s\n", 
+			 op_sim_time(), name, dst_x, dst_y, tmp_ip_addr);
+	}
 	//END MHAVH
 					   
 	/* Allocate memory to set into the AODV packet option	*/

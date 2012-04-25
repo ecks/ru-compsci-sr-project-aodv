@@ -64,7 +64,8 @@ Boolean aodv_geo_find_neighbor(AodvT_Geo_Table* geo_table_ptr,
 // VHRCMA	11/11/10
 // This function will be called upon each LAR interrupt to update
 // each node's LAR_Data information.
-void aodv_geo_LAR_update(int, double);
+/* 2012/02/22 Added the parameter for the geo_table. The statistics collection needs this */
+void aodv_geo_LAR_update(int, double, AodvT_Geo_Table*);
 
 //MKA	11/23/10
 typedef struct LAR_Data
@@ -78,11 +79,17 @@ typedef struct LAR_Data
 // MKA 11/23/10
 // This is the category in which the LAR_Data will
 // be stored in the global database.
-static const char* LAR_OMS_CATEGORY = "LAR_DATA";
+static const char *LAR_OMS_CATEGORY = "LAR_DATA";
+// RC 04/17/2012
+// After finding a bug in sending hello messages we determined that the statistics were not
+// being distributed. A global database of coordinates was used to circumvent this bug.
+static const char *HELLO_OMS_CATEGORY = "HELLO_MESSAGE_DATA";
+
 
 // MKA 11/25/10
 // Retrieve the current node's IP address on the given output interface and store it in ip_str.
-static void get_node_ip(char*, IpT_Rte_Module_Data*, int);
+// RC 04/19/2012 Needed to change the scope of this so that external entities can see it
+void get_node_ip(char*, IpT_Rte_Module_Data*, int);
 
 
 // MKA 12/02/10
@@ -98,8 +105,8 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data*, InetT_Addr_Family , double , doubl
 
 // MKA 11/23/10
 // Comment out the following define to turn off LAR debug printing.
-#define LAR_DEBUG
-#define LAR_UPDATE_DEBUG
+//#define LAR_DEBUG
+//#define LAR_UPDATE_DEBUG
 
 // MKA 12/02/10
 // This method returns whether or not the current node is within the 
@@ -139,6 +146,4 @@ LAR_Data* aodv_geo_LAR_retrieve_data(char* ip);
 /* END LAR DEFINITIONS */
 /* ------------------- */
 
-
 #endif
-

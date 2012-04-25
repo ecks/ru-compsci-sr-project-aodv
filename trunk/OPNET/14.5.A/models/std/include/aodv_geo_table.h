@@ -14,6 +14,9 @@ Boolean			 aodv_geo_table_entry_exists(AodvT_Geo_Table* geo_table_ptr, InetT_Add
 Compcode 		 aodv_geo_table_entry_remove (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address);
 AodvT_Geo_Entry* aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address, Boolean remove);
 void			 aodv_geo_table_entry_mem_free (AodvT_Geo_Entry* geo_entry_ptr);
+/* RC 2012/02/16 - Added this method in order to iterate all entries in the table */
+PrgT_List *aodv_geo_table_get_all_entries(AodvT_Geo_Table* geo_table_ptr); 
+
 
 static AodvT_Geo_Entry* aodv_geo_table_entry_mem_alloc (void);
 
@@ -23,4 +26,4 @@ static AodvT_Geo_Entry* aodv_geo_table_entry_mem_alloc (void);
 // #ifdef GEO_AODV_TABLE_DEBUG
 // debug statements
 // #endif
-//#define GEO_AODV_TABLE_DEBUG
+#define GEO_AODV_TABLE_DEBUG

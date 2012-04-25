@@ -5,6 +5,8 @@
 //MKA 11/21/10
 #include <aodv_geo_support.h>
 #include <ip_rte_support.h>
+/* 2012/02/16 RC */
+#include <aodv_geo_table.h>
 
 const double PI = 3.141592653589793238462643383279502884197169399375;
 const double MAX_ANGLE = 360;
@@ -15,12 +17,18 @@ const double MAX_ANGLE = 360;
 // would be easier.
 static InetT_Addr_Family aodv_addressing_mode;
 
+
+/* 2012/03/01 - RC - init anything for statistics collecitons, including the file to write to */
+static void aodv_geo_record_location_information_statistics_init(void);
+static FILE* STATISTICS_FILE;
+
 /* RC 2012/02/09 - Function for recording statistics for 
  * the amount of error in the locations stored in the geo table.
  * This will enable us to see how accurate the information is in the 
  * geo table.
  */
-static void aodv_geo_record_location_information_statistics(void);
+static void aodv_geo_record_location_information_statistics(AodvT_Geo_Table* geo_table_ptr, char* address, double x, double y);
+
 			   
 // Purpose:	 Compute the length of the vector
 // IN:	    	 start_x, start_y -- starting point of the vector
@@ -592,7 +600,7 @@ void print_lar_data(LAR_Data *lar_data)
 // NOTE: This function assumes that an entry exists in the global
 //		 database to update, and always pulls the data using IF0 as a key.
 
-void aodv_geo_LAR_update( int proc_id, double update_interval  )
+void aodv_geo_LAR_update(int proc_id, double update_interval, AodvT_Geo_Table* geo_table_ptr)
 {
 	
 	int 		node_id;				//This node's id.
@@ -607,6 +615,8 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 #if defined(LAR_UPDATE_DEBUG) && defined(LAR_DEBUG) 
 	printf("=========================LAR UPDATE=========================\n");
 #endif
+	
+		
 	
 	/* COLLECT ATTRIBUTES FROM NODE */
 	node_id = op_topo_parent(proc_id);
@@ -661,7 +671,8 @@ void aodv_geo_LAR_update( int proc_id, double update_interval  )
 #endif
 
 	/* RC 2012/02/09 - record statistics for location information */
-	aodv_geo_record_location_information_statistics();	
+	/* RC 2012/02/22 - Trying to do this as it's own state transistion now */
+	aodv_geo_record_location_information_statistics(geo_table_ptr, address, lar_data->x, lar_data->y);	
 	
 	//Schedule the next interrupt.
 	op_intrpt_schedule_self (op_sim_time () + update_interval, AODVC_LAR_UPDATE);
@@ -708,6 +719,11 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family 
 	// The following variables are used to initialize
 	// data for LAR updates.
 	LAR_Data			*lar_data;
+	// RC 04/17/2012
+	// Added to put a false entry in the central hello messages.
+	// This is because nodes should insert its entry into the table
+	// when it is about to send a hello messsage. 
+	LAR_Data			*hello_message_database_invalid_data;
 	int					num_interfaces;
 	int					ifnum;
 	char				address[INETC_ADDR_STR_LEN];
@@ -727,7 +743,11 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family 
 	
 	// MKA 11/28/10
 	// Create the initial entry in the global databse which will be updated at each LAR interrupt.
+	// RC 04/17/2012
+	// After finding a bug in sending hello messages we determined that the statistics were not
+	// being distributed. A global database of coordinates was used to circumvent this bug. 
 	lar_data = new_LAR_Data(x, y);
+	hello_message_database_invalid_data = new_LAR_Data(DEFAULT_X, DEFAULT_Y);
 	num_interfaces = inet_rte_num_interfaces_get (module_data_ptr);
 	for (ifnum = 0; ifnum < num_interfaces; ifnum++)
 	{
@@ -737,7 +757,14 @@ void aodv_geo_LAR_init( IpT_Rte_Module_Data* module_data_ptr, InetT_Addr_Family 
 		//be the same.
 		get_node_ip(address, module_data_ptr, ifnum);
 		oms_data_def_entry_insert(LAR_OMS_CATEGORY, address, lar_data);
+		printf("????????????????: Initiliazing hello database entry for \"%s\"\n", address);
+		oms_data_def_entry_insert(HELLO_OMS_CATEGORY, address, hello_message_database_invalid_data);
 	}
+	
+	/* 2012/03/01 - RC
+	 * init the statistics collection
+	 */
+	aodv_geo_record_location_information_statistics_init();
 	
 	FOUT;
 }
@@ -852,16 +879,36 @@ LAR_Data* aodv_geo_LAR_retrieve_data(char* ip)
 	return (LAR_Data*) oms_data_def_entry_access(LAR_OMS_CATEGORY, ip);
 }
 
+/* RC 2012/03/01
+ *
+ * Purpose: Initilize everything for location statistics recording
+ *
+ * IN:		none
+ *
+ * OUT:     void
+ */
+static void aodv_geo_record_location_information_statistics_init(void)
+{
+	// TODO Does this need to be append since multiple nodes are writing to it?
+	STATISTICS_FILE = fopen("location_statistics.csv", "w");
+}
+
+
 /* RC 2012/02/09
  *
  * Purpose: Function for recording statistics for 
  *          the amount of error in the locations stored in the geo table.
  *          This will enable us to see how accurate the information is in the 
  *          geo table.
- * IN:
+ *
+ * IN:		geo_talbe_ptr A pointer to the GeoTable we are examining.
+ *			this_node_name The ip address (as a string) of the current node we are in (for recording actual coordinates).
+ *			x The actual x coordinate of this node.			
+ *			y The actual y coordinate of this node.
+ *
  * OUT:     void
  */
-static void aodv_geo_record_location_information_statistics(void) {
+static void aodv_geo_record_location_information_statistics(AodvT_Geo_Table* geo_table_ptr, char* this_node_address, double x, double y) {
 	/* 2012/02/08 RC - Adding code to collect statistics for the accuracy of coordinates in the routing table
 	 * The CSV file will tentatively have each row with values: time and location errer for each node (need to clarify how this will be done
 	 * i.e the case when no route is stored). Therefor we need to pass it. */
@@ -873,64 +920,61 @@ static void aodv_geo_record_location_information_statistics(void) {
 	
 	/* Psuedo code for this idea */
 	/*
-	foreach entry e in global _table(all the nodes):
-		get the geo tables entry for e
-		compare e to what is in the routing table
+	foreach entry e in geo_table:
+		get the central tables entry for e
+		compare e to what is in the central table
 		record the statistics
 	*/
 
-	/* Below is an attpemt to  find all of the nodes in the network 
-	 * See the documentation for op_topo_child() */
-
-
-	char address_str[INETC_ADDR_STR_LEN];
+	PrgT_List *geo_entries_list;
+	AodvT_Geo_Entry *entry_ptr;
+	Objid ppid;
 	char node_name[OMSC_HNAME_MAX_LEN];
-	int i, node_count;
-	Objid node_id, subnet_id, attr_id;
-	
-	/* Used to retreive data from the centrailized database of coordinates */
-	void*		data;					//Generic data storage pointer for when LAR_Data is retrieved from the database.
-	LAR_Data*	lar_data;				//The data stored in the database
-	IpT_Rte_Module_Data* module_data_ptr;		// The module data to use.	
+	char dest_addr[INETC_ADDR_STR_LEN];
+	int entry_count, i;
 	
 	FIN (aodv_geo_record_location_information_statistics( <args> ));
 
-	
-	/* Set unique user ID's of the nodes in parent subnet. */
-	/* First obtain the subnet object ID. */
-	node_id = op_topo_parent (op_id_self ());
-	subnet_id = op_topo_parent (node_id);
-	/* Determine the number of children that are nodes. */
-	node_count = op_topo_child_count (subnet_id, OPC_OBJMTYPE_NODE);
-		
-	module_data_ptr = (IpT_Rte_Module_Data*) op_pro_modmem_access ();
-	
-	printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 
-	/* Loop through the child nodes and set unique user ID's. */
-	for (i = 0; i < node_count; i++) {
-		node_id = op_topo_child (subnet_id, OPC_OBJMTYPE_NODE, i);
-		op_ima_obj_attr_get (node_id, "name", &node_name);
-		attr_id = op_id_from_name(node_id, 	OPC_OBJTYPE_PROC, "ip");
-		op_ima_obj_attr_get (attr_id, "IP", &address_str);
-
-		
-		
-		
-		//get_node_ip(address_str, module_data_ptr, 0);
-		//data = oms_data_def_entry_access(LAR_OMS_CATEGORY, address_str);
-		//op_ima_obj_attr_get (node_id, "IP", &attr_id);
-		
-		printf("Found node %s\n", node_name);
-		/*
-		if (data != OPC_NIL) {
-			lar_data = (LAR_Data*) data;
-			printf("Found coordinates: (%d, %d)\n", lar_data->x, lar_data->y);
+	
+	/* The first part of the statistics collection is to collect this 
+	 * nodes ACTUAL coordinate. This will be the same coordinates that 
+	 * were placed in the centralized coordinate Database. */
+	
+	// TODO Consider getting op_Sim_time() into a variable to that it is
+	// garunteed not to vary for this entire write
+	fprintf(STATISTICS_FILE, "CENTRAL, %f, %s, %f, %f\n", op_sim_time(), this_node_address, x, y);
+	
+	/* The second part of the statistics collection is to collect this
+	 * nodes GeoTable. */
+	
+	/* Get the name of this node */
+	ppid = op_topo_parent(op_id_self());
+	op_ima_obj_attr_get (ppid, "name", &node_name);
+	
+	
+	geo_entries_list = aodv_geo_table_get_all_entries(geo_table_ptr);
+	entry_count = op_prg_list_size(geo_entries_list);
+	
+	for (i = 0; i < entry_count; i++) 
+	{
+		entry_ptr = (AodvT_Geo_Entry*) op_prg_list_access (geo_entries_list, i);
+		if (entry_ptr != OPC_NIL) 
+		{
+			/* Get the destination address as a string */
+			inet_address_print(dest_addr , entry_ptr->dst_address);
+				
+			//printf("Destination @ (%f, %f)\n", entry_ptr->dst_x, entry_ptr->dst_y);
+			// TODO consider using address that is passed in instead of node name
+			fprintf(STATISTICS_FILE, "TABLE, %f, %s, %s, %f, %f\n", op_sim_time(), node_name, dest_addr, 
+				entry_ptr->dst_x, entry_ptr->dst_y);
 		}
-		*/
+		else
+		{
+			printf("entry_ptr is OPC_NIL\n");
+		}
+
 	}
-	
-	printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 	
 	FOUT;
 }

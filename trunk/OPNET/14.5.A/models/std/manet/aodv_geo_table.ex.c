@@ -8,6 +8,8 @@
 #include <aodv_ptypes.h>
 #include <ip_addr_v4.h>
 #include <prg_bin_hash.h>
+// 2012-04-14 - RC - added this for debug symbols
+#include <aodv_geo_table.h>
 
 
 // RC JS 07/12/2010 - Moved these declarations into the code file since they are not used externally, and should not be.
@@ -32,9 +34,15 @@ aodv_geo_table_create (InetT_Addr_Family hash_key_addr_family
 	// 4 ==> The base-2 log of the desired size (in cells) of the hash table. 
 	// sizeof (int) ==> The maximum number of bytes from the key that should be used when computing the hash value. 
 	if (hash_key_addr_family == InetC_Addr_Family_v4)
+		{
+		printf("Creating IPv4 GeoTable\n");
 		geo_table_ptr->geo_table = inet_addr_hash_table_create (100, 0);
+		}
 	else
+		{
 		geo_table_ptr->geo_table = inet_addr_hash_table_create (0, 100);
+		printf("Creating IPv6 GeoTable\n");
+		}
 	//geo_table_ptr->geo_table = prg_bin_hash_table_create (4, sizeof (int));
 	
 	
@@ -89,7 +97,9 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 	AodvT_Geo_Entry*			geo_entry_ptr;
 	//only used for debugging
 	#ifdef GEO_AODV_TABLE_DEBUG
+	Objid						own_id, ppid;
 	char						addr_str [INETC_ADDR_STR_LEN];
+	char						name [256];
 	#endif
 	
 	
@@ -100,12 +110,15 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 	// Print dest address for debugging
 	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, dst_address);
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get(ppid, "name", &name);
 	#endif
 	
 	if (aodv_geo_table_entry_exists(geo_table_ptr, dst_address))
 	{
 		#ifdef GEO_AODV_TABLE_DEBUG
-		printf("^^^^^^^^^^^^^^^^Entry for %s Exists. Insert is omitted!!!\n",addr_str);
+		printf("^^^^^^^^^^^^^^^^%s:Entry for %s Exists. Insert is omitted!!!\n",name, addr_str);
 		#endif
 		
 		// May want to add code to overwrite existing value
@@ -123,12 +136,13 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 		
 		/* Insert this new request into the request table	*/
 		#ifdef GEO_AODV_TABLE_DEBUG
-		printf("^^^^^^^^^^^^^^^^Storing Dest %s with key %d and sequence_number %d\n", addr_str, (int) dst_address, sequence_number);
+		printf("^^^^^^^^^^^^^^^^%s: Storing Dest %s = (%.2f, %.2f) with sequence_number %d\n", name, addr_str, dst_x, dst_y, sequence_number);
 		#endif
 		inet_addr_hash_table_item_insert(geo_table_ptr->geo_table, &dst_address, geo_entry_ptr, PRGC_NIL);
 //		prg_bin_hash_table_item_insert (geo_table_ptr->geo_table,  &(dst_address.address.ipv4_addr), 
 //										geo_entry_ptr, PRGC_NIL);
 	}
+	
 	
 	FOUT;
 }
@@ -146,11 +160,38 @@ aodv_geo_table_insert (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_address
 void aodv_geo_table_update (AodvT_Geo_Table* geo_table_ptr, 
 							InetT_Address address,	double x, double y, int sequence_number)
 {
-		
+	#ifdef GEO_AODV_TABLE_DEBUG 
+	Objid						own_id, ppid;
+	char						addr_str [INETC_ADDR_STR_LEN];
+	char						name [256];
+	#endif	
+	
 	/** Inserts a new geo entry into the originating geo table	**/
 	FIN (aodv_geo_table_update (<args>));
+
+	if (x == 0 && y == 0) 
+	{
+		op_prg_odb_bkpt ("geo_aodv");
+	}
+
 	
-		
+	/* Need to double check that 0 is invalid for the geo_table
+	if (sequence_number == 0) {
+		#ifdef GEO_AODV_TABLE_DEBUG
+		inet_address_print (addr_str, address);
+		printf("^^^^^^^^^^^^^^^^Ignoring update (sequence number is 0) %s (%d) with (%f, %f)\n", addr_str, sequence_number, x, y);
+		#endif
+		FOUT;
+	}
+	*/
+	
+	#ifdef GEO_AODV_TABLE_DEBUG
+	inet_address_print (addr_str, address);
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get(ppid, "name", &name);
+	printf("^^^^^^^^^^^^^^^^%s: Trying to update %s (%d) with (%.2f, %.2f)\n", name, addr_str, sequence_number, x, y);
+	#endif	
 	// Delete old entry if exists
 	if (aodv_geo_table_entry_exists(geo_table_ptr, address))
 	{
@@ -195,7 +236,9 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 	AodvT_Geo_Entry*	geo_entry_ptr = OPC_NIL;
 	//only used for debugging
 	#ifdef GEO_AODV_TABLE_DEBUG 
-	char				addr_str [INETC_ADDR_STR_LEN];
+	Objid						own_id, ppid;
+	char						addr_str [INETC_ADDR_STR_LEN];
+	char						name [256];
 	#endif
 	
 	/** Checks if a specific dst_address exists	**/
@@ -204,12 +247,15 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 	
 	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, dst_address);
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get(ppid, "name", &name);
 	#endif
 	
 	if (remove)
 		{
 		#ifdef GEO_AODV_TABLE_DEBUG
-		printf("^^^^^^^^^^^^^^^^REMOVING Dest %s with key %d\n", addr_str, (int) &dst_address);
+		printf("^^^^^^^^^^^^^^^^%s: REMOVING Dest %s with key %d\n", name, addr_str, (int) &dst_address);
 		#endif
 		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
 		// prg_bin_hash_table_item_remove (geo_table_ptr->geo_table, (void *) &dst_address);
@@ -217,7 +263,7 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 	else
 		{
 		#ifdef GEO_AODV_TABLE_DEBUG
-		printf("^^^^^^^^^^^^^^^^GETTING Dest %s with key %d\n", addr_str, (int) &dst_address);
+		printf("^^^^^^^^^^^^^^^^%s: GETTING Dest %s with key %d\n", name, addr_str, (int) &dst_address);
 		#endif
 		geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_get(geo_table_ptr->geo_table, &dst_address);
 		//prg_bin_hash_table_item_get (geo_table_ptr->geo_table, (void *) &dst_address);
@@ -225,7 +271,7 @@ aodv_geo_table_entry_get (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_addr
 
 	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, geo_entry_ptr->dst_address);
-	printf("^^^^^^^^^^^^^^^^OBTAINED Dest %s \n", addr_str);
+	printf("^^^^^^^^^^^^^^^^%s: OBTAINED Dest %s \n", name, addr_str);
 	#endif
 	FRET (geo_entry_ptr);
 }
@@ -236,7 +282,9 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	AodvT_Geo_Entry*	geo_entry_ptr;
 	//only used for debugging
 	#ifdef GEO_AODV_TABLE_DEBUG
-	char				addr_str [INETC_ADDR_STR_LEN];
+	Objid						own_id, ppid;
+	char						addr_str [INETC_ADDR_STR_LEN];
+	char						name [256];
 	#endif
 	
 	/** Deletes all entries that have the target address	**/
@@ -245,7 +293,10 @@ aodv_geo_table_entry_delete (AodvT_Geo_Table* geo_table_ptr, InetT_Address dst_a
 	// Print dest address for debugging
 	#ifdef GEO_AODV_TABLE_DEBUG
 	inet_address_print (addr_str, dst_address);	
-	printf("^^^^^^^^^^^^^^^^Deleting Dest %s with key %d\n", addr_str, (int) &dst_address);
+	own_id = op_id_self();
+	ppid = op_topo_parent(own_id);
+	op_ima_obj_attr_get(ppid, "name", &name);
+	printf("^^^^^^^^^^^^^^^^%s: Deleting Dest %s with key %d\n", name, addr_str, (int) &dst_address);
 	#endif
 	
 	geo_entry_ptr = (AodvT_Geo_Entry *) inet_addr_hash_table_item_remove(geo_table_ptr->geo_table, &dst_address);
@@ -301,3 +352,14 @@ aodv_geo_table_entry_mem_alloc (void)
 	FRET (geo_entry_ptr);
 }
 
+/* RC 2012/02/16 - Added this method in order to iterate all entries in the table */
+PrgT_List *aodv_geo_table_get_all_entries(AodvT_Geo_Table* geo_table_ptr) 
+{
+	FIN (aodv_geo_table_get_all_entries (<args>));
+	//inet_addr_hash_table_item_list_get (InetT_Address_Hash_Table_Handle htable_handle, InetT_Addr_Family key_addr_family);
+	FRET (inet_addr_hash_table_item_list_get(geo_table_ptr->geo_table, InetC_Addr_Family_v4));
+	
+	// VHRC Attempt to get this to work, it essentially bypasses inet_addr_hash_table_item_list_get
+	// and does what it would do internally
+	//FRET(prg_bin_hash_table_item_list_get (geo_table_ptr->geo_table->ipv4_hash_table));
+}
