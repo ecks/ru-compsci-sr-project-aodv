@@ -38,7 +38,8 @@ class DataProcessor
                 thisNodeName = columns[2]
                 destinationIPAddress = columns[3]
                 destinationCoordinates = Coordinate.new(columns[4], columns[5])
-                storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates)
+                entryTime = columns[6]
+                storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates, entryTime)
             end
         end
 
@@ -51,7 +52,9 @@ class DataProcessor
         puts "Processing centralized data for #{@fileName}"
         file = File.new(@fileName, "r")
         file.each_line("\n") do | row |
+            # remove all the white space
             row = row.gsub(/\s/,  '')
+            # Since its a csv file
             columns = row.split(",")
             entryType = columns[0]
 
@@ -71,14 +74,14 @@ class DataProcessor
         @centralizedData["#{time}:#{thisIPAddress}"] = CentralDatabaseEntry.new(thisIPAddress, time, destinationCoordinates)
     end
 
-    def storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates)
+    def storeStatistics(time, thisNodeName, destinationIPAddress, destinationCoordinates, entryTime)
         datum = getActualCoordinateFor(time, destinationIPAddress)
 
         if datum != nil
             #puts "Store statistics for #{thisNodeName} for entry of #{destinationIPAddress} with #{destinationCoordinates} at #{time}"
             #puts "\t#{datum}"
             distance = destinationCoordinates.distance(datum.coordinates)
-            @outFile.write("#{time}, #{thisNodeName}, #{destinationIPAddress}, #{distance}\n")
+            @outFile.write("#{time}, #{thisNodeName}, #{destinationIPAddress}, #{distance}, #{entryTime}\n")
         end
     end
 end
