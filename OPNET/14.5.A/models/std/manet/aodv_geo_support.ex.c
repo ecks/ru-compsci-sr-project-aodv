@@ -966,8 +966,8 @@ static void aodv_geo_record_location_information_statistics(AodvT_Geo_Table* geo
 				
 			//printf("Destination @ (%f, %f)\n", entry_ptr->dst_x, entry_ptr->dst_y);
 			// TODO consider using address that is passed in instead of node name
-			fprintf(STATISTICS_FILE, "TABLE, %f, %s, %s, %f, %f\n", op_sim_time(), node_name, dest_addr, 
-				entry_ptr->dst_x, entry_ptr->dst_y);
+			fprintf(STATISTICS_FILE, "TABLE, %f, %s, %s, %f, %f, %f\n", op_sim_time(), node_name, dest_addr, 
+				entry_ptr->dst_x, entry_ptr->dst_y, entry_ptr->insert_time);
 		}
 		else
 		{
