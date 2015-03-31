@@ -1,0 +1,1 @@
+The goal is to modify AODV using OPNET, assuming that each node now has a GPS device available.
